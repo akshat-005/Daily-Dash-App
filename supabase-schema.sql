@@ -22,13 +22,13 @@ CREATE TABLE IF NOT EXISTS tasks (
   category TEXT NOT NULL,
   category_color TEXT NOT NULL,
   progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
-  start_time TIME NOT NULL,
-  end_time TIME NOT NULL,
+  estimated_hours DECIMAL(4,2) DEFAULT 1.0 CHECK (estimated_hours > 0),
+  deadline TIME,
   scheduled_date DATE NOT NULL,
   is_completed BOOLEAN DEFAULT FALSE,
-  completed_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Reflections table

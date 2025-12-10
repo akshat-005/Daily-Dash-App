@@ -1,13 +1,13 @@
 export interface Task {
     id: string;
-    user_id?: string;
+    user_id: string;
     title: string;
     category: string;
-    categoryColor: 'indigo' | 'primary' | 'emerald' | 'purple' | 'pink';
+    categoryColor: CategoryColor;
     progress: number;
-    startTime: string;
-    endTime: string;
-    scheduled_date: string; // ISO date string
+    estimatedHours: number;
+    deadline?: string; // Time in HH:MM AM/PM format
+    scheduled_date: string;
     isCompleted: boolean;
     completed_at?: string;
     created_at?: string;

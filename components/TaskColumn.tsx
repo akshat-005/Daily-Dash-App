@@ -166,7 +166,7 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                                 <div className="flex items-center justify-between pt-2 border-t border-surface-border">
                                     <div className="flex items-center gap-2 text-sm text-emerald-400">
                                         <span className="material-symbols-outlined text-base">check_circle</span>
-                                        <span>Completed at {task.completed_at ? new Date(task.completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : task.startTime}</span>
+                                        <span>Completed • {task.estimatedHours}h estimated</span>
                                     </div>
                                 </div>
                             </div>
@@ -225,7 +225,7 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                             <div className="flex items-center justify-between pt-2 border-t border-surface-border">
                                 <div className="flex items-center gap-2 text-sm text-[#9db9a8]">
                                     <span className="material-symbols-outlined text-base">schedule</span>
-                                    <span>{task.startTime} - {task.endTime}</span>
+                                    <span>{task.estimatedHours}h estimated{task.deadline ? ` • Due ${task.deadline}` : ''}</span>
                                 </div>
                                 <button
                                     onClick={() => handleToggleComplete(task.id, task.isCompleted)}
