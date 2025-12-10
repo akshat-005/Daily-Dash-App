@@ -4,7 +4,9 @@ import { useAuth } from '../src/contexts/AuthContext';
 import { useTaskStore } from '../src/stores/taskStore';
 import TaskModal from '../src/components/TaskModal';
 import ConfirmDialog from '../src/components/ConfirmDialog';
+import PushToLaterDialog from '../src/components/PushToLaterDialog';
 import toast from 'react-hot-toast';
+import { formatDate } from '../src/utils/dateUtils';
 
 interface TaskColumnProps {
     currentDate: Date;
@@ -26,6 +28,10 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
     const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; taskId: string | null }>({
         isOpen: false,
         taskId: null,
+    });
+    const [pushToLater, setPushToLater] = useState<{ isOpen: boolean; task: Task | null }>({
+        isOpen: false,
+        task: null,
     });
 
     const handleProgressChange = async (id: string, newProgress: number) => {
@@ -101,6 +107,20 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
             }
         } catch (error) {
             toast.error('Failed to save task');
+        }
+    };
+
+    const handlePushToLater = async (newDate: Date) => {
+        if (!pushToLater.task) return;
+
+        try {
+            await updateTask(pushToLater.task.id, {
+                scheduled_date: formatDate(newDate),
+            });
+            toast.success(`Task moved to ${newDate.toLocaleDateString()}`);
+            setPushToLater({ isOpen: false, task: null });
+        } catch (error) {
+            toast.error('Failed to reschedule task');
         }
     };
 
@@ -207,6 +227,13 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                                 </div>
                                 <div className="flex gap-2">
                                     <button
+                                        onClick={() => setPushToLater({ isOpen: true, task })}
+                                        className="text-white/40 hover:text-primary transition-colors"
+                                        title="Push to later"
+                                    >
+                                        <span className="material-symbols-outlined">schedule_send</span>
+                                    </button>
+                                    <button
                                         onClick={() => handleEditTask(task)}
                                         className="text-white/40 hover:text-primary transition-colors"
                                         title="Edit task"
@@ -283,6 +310,14 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                 variant="danger"
                 onConfirm={confirmDelete}
                 onCancel={() => setDeleteConfirm({ isOpen: false, taskId: null })}
+            />
+
+            {/* Push to Later Dialog */}
+            <PushToLaterDialog
+                isOpen={pushToLater.isOpen}
+                taskTitle={pushToLater.task?.title || ''}
+                onConfirm={handlePushToLater}
+                onClose={() => setPushToLater({ isOpen: false, task: null })}
             />
         </div>
     );
