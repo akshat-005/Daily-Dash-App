@@ -7,32 +7,27 @@ interface TaskModalProps {
     task?: Task | null;
     currentDate: Date;
     userId: string;
+    existingCategories: Array<{ name: string; color: CategoryColor }>;
     onSave: (task: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => void;
     onClose: () => void;
 }
 
-const categories = [
-    { name: 'Deep Block 1', color: 'indigo' as CategoryColor },
-    { name: 'Deep Block 2', color: 'indigo' as CategoryColor },
-    { name: 'Light Task', color: 'primary' as CategoryColor },
-    { name: 'Health', color: 'emerald' as CategoryColor },
-    { name: 'Creative', color: 'purple' as CategoryColor },
-    { name: 'Admin', color: 'pink' as CategoryColor },
-    { name: 'Meetings', color: 'indigo' as CategoryColor },
-    { name: 'Deep Work', color: 'indigo' as CategoryColor },
-];
+const categoryColors: CategoryColor[] = ['indigo', 'primary', 'emerald', 'purple', 'pink'];
 
 const TaskModal: React.FC<TaskModalProps> = ({
     isOpen,
     task,
     currentDate,
     userId,
+    existingCategories,
     onSave,
     onClose,
 }) => {
     const [title, setTitle] = useState('');
-    const [category, setCategory] = useState('Deep Block 1');
-    const [categoryColor, setCategoryColor] = useState<CategoryColor>('indigo');
+    const [categoryMode, setCategoryMode] = useState<'select' | 'new'>('select');
+    const [selectedCategory, setSelectedCategory] = useState('');
+    const [newCategoryName, setNewCategoryName] = useState('');
+    const [categoryColor, setCategoryColor] = useState<CategoryColor>('primary');
     const [estimatedHours, setEstimatedHours] = useState('2');
 
     // Deadline time state
@@ -44,7 +39,15 @@ const TaskModal: React.FC<TaskModalProps> = ({
     useEffect(() => {
         if (task) {
             setTitle(task.title);
-            setCategory(task.category);
+            // Check if task category exists in existing categories
+            const existingCat = existingCategories.find(c => c.name === task.category);
+            if (existingCat) {
+                setCategoryMode('select');
+                setSelectedCategory(task.category);
+            } else {
+                setCategoryMode('new');
+                setNewCategoryName(task.category);
+            }
             setCategoryColor(task.categoryColor);
             setEstimatedHours(task.estimatedHours.toString());
 
@@ -60,26 +63,45 @@ const TaskModal: React.FC<TaskModalProps> = ({
             }
         } else {
             setTitle('');
-            setCategory('Deep Block 1');
-            setCategoryColor('indigo');
+            if (existingCategories.length > 0) {
+                setCategoryMode('select');
+                setSelectedCategory(existingCategories[0].name);
+                setCategoryColor(existingCategories[0].color);
+            } else {
+                setCategoryMode('new');
+                setNewCategoryName('');
+            }
             setEstimatedHours('2');
             setHasDeadline(false);
             setDeadlineHour('5');
             setDeadlineMinute('00');
             setDeadlinePeriod('PM');
         }
-    }, [task, isOpen]);
+    }, [task, isOpen, existingCategories]);
 
-    const handleCategoryChange = (categoryName: string) => {
-        const selected = categories.find((c) => c.name === categoryName);
-        if (selected) {
-            setCategory(selected.name);
-            setCategoryColor(selected.color);
+    const handleCategorySelectChange = (value: string) => {
+        if (value === '__new__') {
+            setCategoryMode('new');
+            setNewCategoryName('');
+            setCategoryColor('primary');
+        } else {
+            setSelectedCategory(value);
+            const cat = existingCategories.find(c => c.name === value);
+            if (cat) {
+                setCategoryColor(cat.color);
+            }
         }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+
+        const categoryName = categoryMode === 'new' ? newCategoryName.trim() : selectedCategory;
+
+        if (!categoryName) {
+            alert('Please enter a category name');
+            return;
+        }
 
         const deadline = hasDeadline
             ? `${deadlineHour}:${deadlineMinute} ${deadlinePeriod}`
@@ -88,7 +110,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
         const taskData: Omit<Task, 'id' | 'created_at' | 'updated_at'> = {
             user_id: userId,
             title,
-            category,
+            category: categoryName,
             categoryColor,
             progress: task?.progress || 0,
             estimatedHours: parseFloat(estimatedHours),
@@ -134,17 +156,70 @@ const TaskModal: React.FC<TaskModalProps> = ({
                         <label className="block text-sm font-medium text-[#9db9a8] mb-2">
                             Category
                         </label>
-                        <select
-                            value={category}
-                            onChange={(e) => handleCategoryChange(e.target.value)}
-                            className="w-full bg-[#111814] border border-surface-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
-                        >
-                            {categories.map((cat) => (
-                                <option key={cat.name} value={cat.name}>
-                                    {cat.name}
-                                </option>
+                        {categoryMode === 'select' ? (
+                            <select
+                                value={selectedCategory}
+                                onChange={(e) => handleCategorySelectChange(e.target.value)}
+                                className="w-full bg-[#111814] border border-surface-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+                            >
+                                {existingCategories.map((cat) => (
+                                    <option key={cat.name} value={cat.name}>
+                                        {cat.name}
+                                    </option>
+                                ))}
+                                <option value="__new__">+ Add New Category</option>
+                            </select>
+                        ) : (
+                            <div className="space-y-2">
+                                <input
+                                    type="text"
+                                    value={newCategoryName}
+                                    onChange={(e) => setNewCategoryName(e.target.value)}
+                                    required
+                                    className="w-full bg-[#111814] border border-surface-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+                                    placeholder="Enter new category name..."
+                                    autoFocus
+                                />
+                                {existingCategories.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setCategoryMode('select');
+                                            setSelectedCategory(existingCategories[0].name);
+                                            setCategoryColor(existingCategories[0].color);
+                                        }}
+                                        className="text-xs text-primary hover:underline"
+                                    >
+                                        ← Back to existing categories
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-[#9db9a8] mb-2">
+                            Category Color
+                        </label>
+                        <div className="flex gap-3">
+                            {categoryColors.map((color) => (
+                                <button
+                                    key={color}
+                                    type="button"
+                                    onClick={() => setCategoryColor(color)}
+                                    className={`size-10 rounded-full transition-all ${categoryColor === color
+                                            ? 'ring-2 ring-white ring-offset-2 ring-offset-surface-dark scale-110'
+                                            : 'hover:scale-105'
+                                        } ${color === 'indigo' ? 'bg-indigo-500' :
+                                            color === 'primary' ? 'bg-primary' :
+                                                color === 'emerald' ? 'bg-emerald-500' :
+                                                    color === 'purple' ? 'bg-purple-500' :
+                                                        'bg-pink-500'
+                                        }`}
+                                    title={color}
+                                />
                             ))}
-                        </select>
+                        </div>
                     </div>
 
                     <div>

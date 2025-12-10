@@ -28,8 +28,31 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
         taskId: null,
     });
 
-    const handleProgressChange = (id: string, newProgress: number) => {
+    const handleProgressChange = async (id: string, newProgress: number) => {
+        const task = tasks.find(t => t.id === id);
+        if (!task) return;
+
+        // Update progress
         updateProgress(id, newProgress);
+
+        // Auto-complete when reaching 100%
+        if (newProgress === 100 && !task.isCompleted) {
+            try {
+                await toggleComplete(id, false); // false because current state is not completed
+                toast.success('Task completed! 🎉');
+            } catch (error) {
+                toast.error('Failed to complete task');
+            }
+        }
+        // Auto-reopen when dragging below 100%
+        else if (newProgress < 100 && task.isCompleted) {
+            try {
+                await toggleComplete(id, true); // true because current state is completed
+                toast.success('Task reopened');
+            } catch (error) {
+                toast.error('Failed to reopen task');
+            }
+        }
     };
 
     const handleToggleComplete = async (id: string, isCompleted: boolean) => {
@@ -97,23 +120,23 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
         return getColorClasses(color, true);
     };
 
+    // Dynamically get unique categories from tasks
+    const uniqueCategories = ['All Tasks', ...Array.from(new Set(tasks.map(task => task.category)))];
+
     // Filter tasks based on selected filter
     const filteredTasks = tasks.filter((task) => {
         if (filter === 'All Tasks') return true;
-        if (filter === 'Deep Work') return task.category.includes('Deep Block');
-        if (filter === 'Meetings') return task.category === 'Meetings';
-        if (filter === 'Health') return task.category === 'Health';
-        return true;
+        return task.category === filter;
     });
 
     return (
         <div className="lg:col-span-6 flex flex-col gap-3">
             {/* Filter Tabs */}
             <div className="flex gap-2 mb-1 overflow-x-auto pb-2 scrollbar-hide">
-                {(['All Tasks', 'Deep Work', 'Meetings', 'Health'] as FilterType[]).map(f => (
+                {uniqueCategories.map(f => (
                     <button
                         key={f}
-                        onClick={() => setFilter(f)}
+                        onClick={() => setFilter(f as FilterType)}
                         className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filter === f
                             ? 'bg-primary text-[#111814]'
                             : 'bg-surface-dark border border-surface-border text-white font-medium hover:bg-surface-border'
@@ -202,11 +225,14 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
 
                             {/* Interactive Progress Bar */}
                             <div className="mb-3">
-                                <div className="flex justify-between text-xs font-medium text-[#9db9a8] mb-2">
+                                <div className="flex justify-between text-xs font-medium text-[#9db9a8] mb-1">
                                     <span>Progress</span>
                                     <span>{task.progress}%</span>
                                 </div>
-                                <div className="relative w-full h-2 bg-surface-border rounded-full overflow-hidden">
+                                <div className="flex justify-between items-center mb-1">
+                                    <span className="text-[10px] text-primary/80">← Slide to update progress →</span>
+                                </div>
+                                <div className="relative w-full h-2 bg-surface-border rounded-full overflow-hidden group">
                                     <div
                                         className={`absolute left-0 top-0 h-full rounded-full transition-all duration-300 ease-out ${getGradient(task.categoryColor)}`}
                                         style={{ width: `${task.progress}%` }}
@@ -218,7 +244,8 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                                     max="100"
                                     value={task.progress}
                                     onChange={(e) => handleProgressChange(task.id, parseInt(e.target.value))}
-                                    className="absolute left-0 w-full h-2 opacity-0 cursor-pointer -mt-2 z-10"
+                                    className="w-full h-2 -mt-2 cursor-pointer appearance-none bg-transparent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-glow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-glow"
+                                    title={`Drag to update progress (${task.progress}%)`}
                                 />
                             </div>
 
@@ -227,13 +254,6 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                                     <span className="material-symbols-outlined text-base">schedule</span>
                                     <span>{task.estimatedHours}h estimated{task.deadline ? ` • Due ${task.deadline}` : ''}</span>
                                 </div>
-                                <button
-                                    onClick={() => handleToggleComplete(task.id, task.isCompleted)}
-                                    className="size-9 flex items-center justify-center rounded-full bg-surface-border hover:bg-primary hover:text-black transition-colors"
-                                    title="Mark as complete"
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">check</span>
-                                </button>
                             </div>
                         </div>
                     );
@@ -245,7 +265,10 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                 isOpen={isModalOpen}
                 task={editingTask}
                 currentDate={currentDate}
-                userId={user?.id || ''}
+                userId={user!.id}
+                existingCategories={Array.from(
+                    new Map(tasks.map(t => [t.category, { name: t.category, color: t.categoryColor }])).values()
+                )}
                 onSave={handleSaveTask}
                 onClose={() => setIsModalOpen(false)}
             />

@@ -75,8 +75,8 @@ export const updateTask = async (id: string, updates: Partial<Task>): Promise<Ta
     if (updates.category !== undefined) dbUpdates.category = updates.category;
     if (updates.categoryColor !== undefined) dbUpdates.category_color = updates.categoryColor;
     if (updates.progress !== undefined) dbUpdates.progress = updates.progress;
-    if (updates.startTime !== undefined) dbUpdates.start_time = updates.startTime;
-    if (updates.endTime !== undefined) dbUpdates.end_time = updates.endTime;
+    if (updates.estimatedHours !== undefined) dbUpdates.estimated_hours = updates.estimatedHours;
+    if (updates.deadline !== undefined) dbUpdates.deadline = updates.deadline;
     if (updates.scheduled_date !== undefined) dbUpdates.scheduled_date = updates.scheduled_date;
     if (updates.isCompleted !== undefined) {
         dbUpdates.is_completed = updates.isCompleted;

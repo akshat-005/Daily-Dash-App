@@ -96,7 +96,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentDate, onDateSelect }) => {
           {calendarDays.map((d, i) => {
             if (d.day === 0) return <span key={i}></span>;
 
-            if (d.isToday) {
+            const isSelected = d.date && formatDate(d.date) === formatDate(currentDate);
+            const isActualToday = d.isToday;
+
+            // Selected date (where user is viewing)
+            if (isSelected) {
               return (
                 <div
                   key={i}
@@ -105,6 +109,19 @@ const Sidebar: React.FC<SidebarProps> = ({ currentDate, onDateSelect }) => {
                 >
                   <span className="text-xs font-bold text-black z-10">{d.day}</span>
                   <span className="absolute -bottom-0.5 size-1 rounded-full bg-black/40"></span>
+                </div>
+              );
+            }
+
+            // Today's actual date (with ring outline)
+            if (isActualToday) {
+              return (
+                <div
+                  key={i}
+                  onClick={() => d.date && onDateSelect(d.date)}
+                  className="flex flex-col items-center justify-center relative size-8 rounded-full ring-2 ring-primary cursor-pointer hover:scale-110 transition-transform"
+                >
+                  <span className="text-xs font-bold text-white z-10">{d.day}</span>
                 </div>
               );
             }

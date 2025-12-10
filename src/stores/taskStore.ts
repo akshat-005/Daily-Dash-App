@@ -73,16 +73,23 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     },
 
     updateProgress: async (id, progress) => {
-        // Optimistic update
+        // Optimistically update UI
         set((state) => ({
-            tasks: state.tasks.map((t) => (t.id === id ? { ...t, progress } : t)),
+            tasks: state.tasks.map((task) =>
+                task.id === id ? { ...task, progress } : task
+            ),
         }));
 
         try {
-            await taskApi.updateProgress(id, progress);
+            await taskApi.updateProgress(id, progress); // Assuming taskApi.updateProgress is the correct function
         } catch (error: any) {
+            console.error('Failed to update progress:', error);
             // Revert on error
-            get().fetchTasks(get().tasks[0]?.user_id || '', get().tasks[0]?.scheduled_date || '');
+            // Re-fetch tasks to revert the optimistic update
+            await get().fetchTasks(
+                get().tasks[0]?.user_id || '',
+                get().tasks[0]?.scheduled_date || ''
+            );
             set({ error: error.message });
         }
     },
@@ -121,8 +128,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                                     category: newTask.category,
                                     categoryColor: newTask.category_color,
                                     progress: newTask.progress,
-                                    startTime: newTask.start_time,
-                                    endTime: newTask.end_time,
+                                    estimatedHours: newTask.estimated_hours,
+                                    deadline: newTask.deadline,
                                     scheduled_date: newTask.scheduled_date,
                                     isCompleted: newTask.is_completed,
                                     completed_at: newTask.completed_at,
@@ -143,8 +150,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                                         category: updatedTask.category,
                                         categoryColor: updatedTask.category_color,
                                         progress: updatedTask.progress,
-                                        startTime: updatedTask.start_time,
-                                        endTime: updatedTask.end_time,
+                                        estimatedHours: updatedTask.estimated_hours,
+                                        deadline: updatedTask.deadline,
                                         scheduled_date: updatedTask.scheduled_date,
                                         isCompleted: updatedTask.is_completed,
                                         completed_at: updatedTask.completed_at,
