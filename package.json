@@ -9,8 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.87.1",
+    "date-fns": "^4.1.0",
+    "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "react": "^19.2.1"
+    "react-hot-toast": "^2.6.0",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
