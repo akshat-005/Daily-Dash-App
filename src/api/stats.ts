@@ -90,11 +90,12 @@ export const calculateAndSaveDailyScore = async (
 };
 
 export const updateStreak = async (userId: string): Promise<Streak> => {
-    // Fetch all daily stats to calculate streak
+    // Fetch all daily stats with score > 55 to calculate streak
     const { data: stats, error: statsError } = await supabase
         .from('daily_stats')
-        .select('stat_date')
+        .select('stat_date, daily_score')
         .eq('user_id', userId)
+        .gt('daily_score', 55) // Only count days with score > 55%
         .order('stat_date', { ascending: false });
 
     if (statsError) throw statsError;

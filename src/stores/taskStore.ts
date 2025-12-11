@@ -91,6 +91,33 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             if (task?.long_task_id) {
                 await get().updateLinkedLongerTaskProgress(task.long_task_id);
             }
+
+            // Update stats after progress change
+            if (task) {
+                const { user_id, scheduled_date } = task;
+                const allTasks = get().tasks.map((t) => (t.id === id ? { ...t, progress } : t));
+                const dailyTasks = allTasks.filter(t => !t.is_longer_task);
+
+                // Import stats functions dynamically
+                const { calculateAndSaveDailyScore, updateStreak } = await import('../api/stats');
+                const { useStatsStore } = await import('./statsStore');
+
+                try {
+                    // Update daily score
+                    await calculateAndSaveDailyScore(user_id, scheduled_date, dailyTasks, false);
+
+                    // Update streak
+                    await updateStreak(user_id);
+
+                    // Refresh stats in the store
+                    const statsStore = useStatsStore.getState();
+                    await statsStore.fetchDailyStats(user_id, scheduled_date);
+                    await statsStore.fetchStreak(user_id);
+                    await statsStore.fetchWeeklyMomentum(user_id);
+                } catch (statsError) {
+                    console.error('Failed to update stats:', statsError);
+                }
+            }
         } catch (error: any) {
             console.error('Failed to update progress:', error);
             // Revert on error
@@ -199,6 +226,34 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             set((state) => ({
                 tasks: state.tasks.map((t) => (t.id === id ? updatedTask : t)),
             }));
+
+            // Update stats after completing/uncompleting a task
+            const { user_id, scheduled_date } = updatedTask;
+            const allTasks = get().tasks.map((t) => (t.id === id ? updatedTask : t));
+
+            // Filter out longer tasks - only count daily tasks for score
+            const dailyTasks = allTasks.filter(t => !t.is_longer_task);
+
+            // Import stats functions dynamically to avoid circular dependency
+            const { calculateAndSaveDailyScore, updateStreak } = await import('../api/stats');
+            const { useStatsStore } = await import('./statsStore');
+
+            try {
+                // Update daily score (only with daily tasks, not longer tasks)
+                await calculateAndSaveDailyScore(user_id, scheduled_date, dailyTasks, false);
+
+                // Update streak
+                await updateStreak(user_id);
+
+                // Refresh stats in the store
+                const statsStore = useStatsStore.getState();
+                await statsStore.fetchDailyStats(user_id, scheduled_date);
+                await statsStore.fetchStreak(user_id);
+                await statsStore.fetchWeeklyMomentum(user_id);
+            } catch (statsError) {
+                console.error('Failed to update stats:', statsError);
+                // Don't throw - stats update failure shouldn't block task completion
+            }
         } catch (error: any) {
             set({ error: error.message });
         }

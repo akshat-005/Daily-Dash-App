@@ -8,24 +8,16 @@ interface ScoreInputs {
 }
 
 export const calculateDailyScore = (inputs: ScoreInputs): number => {
-    const { tasksCompleted, tasksTotal, tasks, hasReflection } = inputs;
+    const { tasks } = inputs;
 
-    if (tasksTotal === 0) return 0;
+    if (tasks.length === 0) return 0;
 
-    // Base score from completion rate (40% weight)
-    const completionRate = tasksCompleted / tasksTotal;
-    const completionScore = completionRate * 40;
-
-    // Average progress score (40% weight)
+    // Daily score is simply the average progress across all tasks
+    // Example: [50, 80, 25, 100] → (50+80+25+100)/4 = 63.75 → 64%
     const totalProgress = tasks.reduce((sum, task) => sum + task.progress, 0);
-    const avgProgress = tasks.length > 0 ? totalProgress / tasks.length : 0;
-    const progressScore = (avgProgress / 100) * 40;
+    const avgProgress = totalProgress / tasks.length;
 
-    // Reflection bonus (20% weight)
-    const reflectionScore = hasReflection ? 20 : 0;
-
-    const finalScore = Math.round(completionScore + progressScore + reflectionScore);
-    return Math.min(100, Math.max(0, finalScore));
+    return Math.round(avgProgress);
 };
 
 export const getProductivityLevel = (score: number): 'high' | 'medium' | 'low' => {
