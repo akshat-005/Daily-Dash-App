@@ -24,89 +24,24 @@ Whether you're a student, professional, or anyone looking to boost productivity,
 
 ### Core Features
 
-#### 📋 **Task Management**
-- **Create & organize tasks** with custom categories and colors (Indigo, Primary, Emerald, Purple, Pink)
-- **Progress tracking** with interactive sliders (0-100%)
-- **Estimated hours** for better time planning
-- **Deadline setting** with custom time picker (AM/PM support)
-- **Task completion** with automatic daily score updates
-- **Drag-to-adjust progress** for quick updates
+- **📋 Task Management** - Create tasks with custom categories, colors, progress tracking, estimated hours, and deadlines
+- **⏱️ Built-in Timer** - Pomodoro-style timer with custom durations (15/25/45/60 min) and pause/resume functionality
+- **📅 Date Navigation** - Calendar view with productivity indicators and quick date switching
+- **🔥 Streak Tracking** - Daily consistency counter with automatic updates and visual indicators
+- **📊 Daily Score & Momentum** - Automatic score calculation (0-100%) with weekly momentum visualization
+- **📝 Longer Tasks** - Multi-day project tracking with daily task linking and progress visualization
+- **📱 Responsive Design** - Mobile-optimized with bottom navigation and desktop three-column layout
+- **🔐 Authentication** - Supabase auth with row-level security and user profiles
+- **🔄 Real-time Sync** - Live updates across devices with offline-ready state management
 
-#### ⏱️ **Built-in Timer**
-- **Pomodoro-style timer** for focused work sessions
-- **Custom duration selection** (15, 25, 45, 60 minutes, or custom)
-- **Pause/Resume functionality** for flexible work sessions
-- **Visual timer display** with real-time countdown
-- **Task-linked timers** to track time spent on specific tasks
+### 🌟 What Makes DailyDash Unique
 
-#### 📅 **Date Navigation**
-- **Calendar view** with visual productivity indicators
-- **Previous/Next day navigation** for quick date switching
-- **Today's focus** section highlighting current tasks
-- **Date-specific task filtering** to view tasks for any day
-
-#### 🔥 **Streak Tracking**
-- **Current streak counter** to maintain daily consistency
-- **Longest streak** tracking for motivation
-- **Automatic streak updates** based on task completion
-- **Visual streak indicators** with fire emoji animations
-
-#### 📊 **Daily Score & Momentum**
-- **Automatic daily score calculation** (0-100%) based on task completion
-- **Weekly momentum visualization** with bar chart
-- **Productivity level indicators** (High, Medium, Low)
-- **Real-time score updates** as you complete tasks
-
-#### 📝 **Longer Tasks**
-- **Multi-day project tracking** for complex goals
-- **Link daily tasks** to longer-term projects
-- **Progress visualization** for long-term goals
-- **Deadline management** for project milestones
-- **Detailed task descriptions** for comprehensive planning
-
-#### 📱 **Responsive Design**
-- **Mobile-optimized interface** with bottom navigation
-- **Desktop layout** with three-column dashboard
-- **Adaptive UI** that works seamlessly on all screen sizes
-- **Touch-friendly controls** for mobile devices
-
-#### 🔐 **Authentication & Security**
-- **Supabase authentication** with email/password
-- **Row-level security (RLS)** for data privacy
-- **User profiles** with customizable settings
-- **Secure data storage** with PostgreSQL
-
-#### 🔄 **Real-time Sync**
-- **Live task updates** across all devices
-- **Instant synchronization** using Supabase real-time subscriptions
-- **Conflict-free updates** with optimistic UI updates
-- **Offline-ready** with local state management
-
-### 🌟 Unique Features
-
-1. **Momentum-Based Productivity Tracking**
-   - Unlike traditional task apps, DailyDash focuses on building momentum through visual weekly charts that show your productivity trends at a glance.
-
-2. **Integrated Timer with Task Linking**
-   - Seamlessly start timers directly from tasks without switching contexts, with automatic progress updates based on time spent.
-
-3. **Gamified Streak System**
-   - Stay motivated with a streak counter that encourages daily consistency, similar to popular habit-tracking apps but integrated directly into your task workflow.
-
-4. **Dynamic Daily Score Algorithm**
-   - Automatically calculates your productivity score based on task completion, progress, and estimated hours, giving you instant feedback on your day.
-
-5. **Longer Tasks Integration**
-   - Bridge the gap between daily tasks and long-term projects by linking daily work to broader goals, maintaining context without losing focus.
-
-6. **Beautiful Dark-Themed UI**
-   - Carefully crafted design with vibrant accent colors (#2bee79 primary green), smooth animations, and glassmorphism effects for a premium feel.
-
-7. **Custom Category System**
-   - Create unlimited custom categories with color-coded organization, making it easy to filter and focus on specific types of work.
-
-8. **Push to Later Functionality**
-   - Easily reschedule tasks to future dates without losing context or progress, perfect for adaptive planning.
+- **Momentum-Based Tracking** - Visual weekly charts show productivity trends at a glance
+- **Timer-Task Integration** - Start timers directly from tasks with automatic progress updates
+- **Gamified Streaks** - Daily consistency tracking integrated into your workflow
+- **Smart Daily Score** - Auto-calculated based on completion, progress, and estimated hours
+- **Long-Term Project Bridge** - Link daily tasks to broader goals without losing focus
+- **Premium Dark UI** - Vibrant accent colors, smooth animations, and glassmorphism effects
 
 ---
 
