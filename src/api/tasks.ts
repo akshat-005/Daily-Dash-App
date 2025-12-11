@@ -18,16 +18,16 @@ export const fetchTasks = async (userId: string, date: string): Promise<Task[]> 
         user_id: task.user_id,
         title: task.title,
         category: task.category,
-        categoryColor: task.category_color as CategoryColor, // Changed type assertion
+        categoryColor: task.category_color as CategoryColor,
         progress: task.progress,
-        estimatedHours: task.estimated_hours, // Added
-        deadline: task.deadline,             // Added
-        // startTime and endTime removed
+        estimatedHours: task.estimated_hours,
+        deadline: task.deadline,
         scheduled_date: task.scheduled_date,
         isCompleted: task.is_completed,
         completed_at: task.completed_at,
         created_at: task.created_at,
         updated_at: task.updated_at,
+        long_task_id: task.long_task_id,
     }));
 };
 

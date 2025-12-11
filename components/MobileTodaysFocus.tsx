@@ -246,12 +246,11 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                         return (
                             <div
                                 key={task.id}
-                                className={`bg - [#1a2d23] border border - [#2d4a38] rounded - 2xl p - 4 ${isCompleted ? 'opacity-70' : ''
-                                    } `}
+                                className={`bg-[#1a2d23] border border-[#2d4a38] rounded-2xl p-4 ${isCompleted ? 'opacity-70' : ''}`}
                             >
                                 <div className="flex items-start justify-between mb-3">
                                     <div className="flex items-center gap-3 flex-1">
-                                        <div className={`size - 10 rounded - full ${getIconBgColor(task.categoryColor)} flex items - center justify - center`}>
+                                        <div className={`size-10 rounded-full ${getIconBgColor(task.categoryColor)} flex items-center justify-center`}>
                                             <span className="material-symbols-outlined text-white text-[20px]">
                                                 {task.category === 'Deep Work' ? 'psychology' : task.category === 'Health' ? 'favorite' : 'work'}
                                             </span>
@@ -309,10 +308,10 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                                         {/* Completion Toggle */}
                                         <button
                                             onClick={() => handleToggleComplete(task.id, task.isCompleted)}
-                                            className={`size - 8 rounded - full flex items - center justify - center transition - all ${isCompleted
-                                                ? 'bg-primary text-black'
-                                                : 'border-2 border-white/30 text-transparent hover:border-primary'
-                                                } `}
+                                            className={`size-8 rounded-full flex items-center justify-center transition-all ${isCompleted
+                                                    ? 'bg-primary text-black'
+                                                    : 'border-2 border-white/30 text-transparent hover:border-primary'
+                                                }`}
                                         >
                                             {isCompleted && <span className="material-symbols-outlined text-[18px] font-bold">check</span>}
                                         </button>
@@ -328,8 +327,8 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                                         </div>
                                         <div className="relative w-full h-2 bg-[#111814] rounded-full overflow-hidden mb-1">
                                             <div
-                                                className={`absolute left - 0 top - 0 h - full rounded - full transition - all duration - 300 ${getGradient(task.categoryColor)} `}
-                                                style={{ width: `${task.progress}% ` }}
+                                                className={`absolute left-0 top-0 h-full rounded-full transition-all duration-300 ${getGradient(task.categoryColor)}`}
+                                                style={{ width: `${task.progress}%` }}
                                             />
                                         </div>
                                         <input
