@@ -9,6 +9,7 @@ interface AuthContextType {
     signIn: (email: string, password: string) => Promise<{ error: any }>;
     signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
     signOut: () => Promise<void>;
+    getUserDisplayName: () => string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -81,6 +82,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await supabase.auth.signOut();
     };
 
+    const getUserDisplayName = () => {
+        if (user?.user_metadata?.full_name) {
+            return user.user_metadata.full_name;
+        }
+        if (user?.email) {
+            return user.email.split('@')[0];
+        }
+        return 'User';
+    };
+
     const value = {
         user,
         session,
@@ -88,6 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signIn,
         signUp,
         signOut,
+        getUserDisplayName,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

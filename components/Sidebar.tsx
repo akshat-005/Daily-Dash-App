@@ -13,7 +13,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentDate, onDateSelect }) => {
-  const { user } = useAuth();
+  const { user, getUserDisplayName } = useAuth();
   const [calendarDays, setCalendarDays] = useState<Day[]>([]);
 
   useEffect(() => {
@@ -82,7 +82,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentDate, onDateSelect }) => {
           {format(currentDate, 'EEEE, MMMM d, yyyy')}
         </p>
         <h2 className="text-white text-2xl font-bold mb-1">
-          Hi, {user?.email?.split('@')[0] || 'User'}! 👋
+          Hi, {getUserDisplayName()}! 👋
         </h2>
         <p className="text-white/60 text-sm">
           Let's make today productive

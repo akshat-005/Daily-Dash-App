@@ -3,7 +3,7 @@ import { useAuth } from '../src/contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const Header: React.FC = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, getUserDisplayName } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   const handleSignOut = async () => {
@@ -42,7 +42,7 @@ const Header: React.FC = () => {
             <div className="size-7 rounded-full bg-black/10 flex items-center justify-center overflow-hidden">
               <span className="material-symbols-outlined text-white">person</span>
             </div>
-            <span>{user?.email?.split('@')[0] || 'Profile'}</span>
+            <span>{getUserDisplayName()}</span>
           </button>
 
           {showProfileMenu && (

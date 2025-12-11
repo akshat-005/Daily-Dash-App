@@ -19,7 +19,7 @@ interface MobileViewProps {
 }
 
 const MobileView: React.FC<MobileViewProps> = ({ currentDate, onDateSelect }) => {
-    const { user } = useAuth();
+    const { user, getUserDisplayName } = useAuth();
     const [activeView, setActiveView] = useState<'dashboard' | 'calendar' | 'stats' | 'profile'>('dashboard');
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -60,7 +60,7 @@ const MobileView: React.FC<MobileViewProps> = ({ currentDate, onDateSelect }) =>
                             {format(currentDate, 'EEEE, MMM d').toUpperCase()}
                         </p>
                         <h1 className="text-white text-xl font-bold">
-                            Hi, {user?.email?.split('@')[0] || 'User'}
+                            Hi, {getUserDisplayName()}
                         </h1>
                     </div>
                     <div className="flex items-center gap-2">
@@ -111,7 +111,7 @@ const MobileView: React.FC<MobileViewProps> = ({ currentDate, onDateSelect }) =>
                                     <span className="material-symbols-outlined text-black text-[40px]">person</span>
                                 </div>
                                 <h2 className="text-white text-xl font-bold mb-1">
-                                    {user?.email?.split('@')[0] || 'User'}
+                                    {getUserDisplayName()}
                                 </h2>
                                 <p className="text-white/50 text-sm">{user?.email}</p>
                             </div>
