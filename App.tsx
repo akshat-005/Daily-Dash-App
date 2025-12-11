@@ -7,14 +7,17 @@ import Sidebar from './components/Sidebar';
 import TaskColumn from './components/TaskColumn';
 import StatsColumn from './components/StatsColumn';
 import LoadingSpinner from './src/components/LoadingSpinner';
+import MobileView from './components/MobileView';
 import { useTaskStore } from './src/stores/taskStore';
 import { useReflectionStore } from './src/stores/reflectionStore';
 import { useStatsStore } from './src/stores/statsStore';
 import { formatDate, formatDisplayDate, addDays } from './src/utils/dateUtils';
+import { useMediaQuery } from './src/utils/useMediaQuery';
 
 const DashboardContent: React.FC = () => {
   const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const isMobile = useMediaQuery('(max-width: 900px)');
 
   const fetchTasks = useTaskStore((state) => state.fetchTasks);
   const subscribeToTasks = useTaskStore((state) => state.subscribeToTasks);
@@ -52,6 +55,12 @@ const DashboardContent: React.FC = () => {
     setCurrentDate(date);
   };
 
+  // Mobile View
+  if (isMobile) {
+    return <MobileView currentDate={currentDate} onDateSelect={handleDateSelect} />;
+  }
+
+  // Desktop View
   return (
     <>
       <Header />
