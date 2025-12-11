@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Task } from '../types';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useTaskStore } from '../src/stores/taskStore';
+import { useLongerTaskStore } from '../src/stores/longerTaskStore';
 import TaskModal from '../src/components/TaskModal';
 import PushToLaterDialog from '../src/components/PushToLaterDialog';
 import ConfirmDialog from '../src/components/ConfirmDialog';
+import AddLongerTaskModal from '../src/components/AddLongerTaskModal';
+import TimerDurationModal from '../src/components/TimerDurationModal';
 import toast from 'react-hot-toast';
 import { formatDate, addDays } from '../src/utils/dateUtils';
 
@@ -19,8 +22,14 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
     const updateTask = useTaskStore((state) => state.updateTask);
     const updateProgress = useTaskStore((state) => state.updateProgress);
     const deleteTask = useTaskStore((state) => state.deleteTask);
+    const longerTasks = useLongerTaskStore((state) => state.longerTasks);
+    const createLongerTask = useLongerTaskStore((state) => state.createLongerTask);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isLongerTaskModalOpen, setIsLongerTaskModalOpen] = useState(false);
+    const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
+    const [pendingLinkTaskId, setPendingLinkTaskId] = useState<string | null>(null);
+    const [pendingTimerTaskId, setPendingTimerTaskId] = useState<string | null>(null);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [activeTimers, setActiveTimers] = useState<Record<string, { seconds: number; isRunning: boolean }>>({});
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -97,7 +106,7 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
             await updateTask(pushToLater.task.id, {
                 scheduled_date: formatDate(newDate),
             });
-            toast.success(`Task moved to ${newDate.toLocaleDateString()}`);
+            toast.success(`Task moved to ${newDate.toLocaleDateString()} `);
             setPushToLater({ isOpen: false, task: null });
         } catch (error) {
             toast.error('Failed to reschedule task');
@@ -115,7 +124,7 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
         }
     };
 
-    const toggleTimer = (taskId: string) => {
+    const toggleTimer = (taskId: string, customMinutes?: number) => {
         setActiveTimers((prev) => {
             if (prev[taskId]) {
                 return {
@@ -123,9 +132,16 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                     [taskId]: { ...prev[taskId], isRunning: !prev[taskId].isRunning },
                 };
             } else {
-                // Initialize timer with estimated hours converted to seconds
+                // Initialize timer with custom minutes or estimated hours
                 const task = tasks.find((t) => t.id === taskId);
-                const initialSeconds = task ? task.estimatedHours * 60 * 60 : 3600;
+                let initialSeconds: number;
+
+                if (customMinutes !== undefined) {
+                    initialSeconds = customMinutes * 60;
+                } else {
+                    initialSeconds = task ? task.estimatedHours * 60 * 60 : 3600;
+                }
+
                 return {
                     ...prev,
                     [taskId]: { seconds: initialSeconds, isRunning: true },
@@ -142,10 +158,39 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
         });
     };
 
+    const handleLinkToLongerTask = async (taskId: string, longerTaskId: string | null) => {
+        try {
+            const { linkToLongerTask } = useTaskStore.getState();
+            await linkToLongerTask(taskId, longerTaskId);
+            if (longerTaskId) {
+                toast.success('Task linked to longer task!');
+            } else {
+                toast.success('Task unlinked');
+            }
+        } catch (error) {
+            toast.error('Failed to link task');
+        }
+    };
+
+    const handleCreateAndLinkLongerTask = async (taskData: { user_id: string; title: string; description?: string; deadline?: string; estimatedHours?: number }) => {
+        try {
+            await createLongerTask(taskData);
+            // Get the newly created task ID from the store
+            const newLongerTasks = useLongerTaskStore.getState().longerTasks;
+            const newLongerTask = newLongerTasks[newLongerTasks.length - 1];
+            if (pendingLinkTaskId && newLongerTask) {
+                await handleLinkToLongerTask(pendingLinkTaskId, newLongerTask.id);
+            }
+            setPendingLinkTaskId(null);
+        } catch (error) {
+            toast.error('Failed to create longer task');
+        }
+    };
+
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
+        return `${mins}:${secs.toString().padStart(2, '0')} `;
     };
 
     const getColorClasses = (color: string) => {
@@ -201,22 +246,22 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                         return (
                             <div
                                 key={task.id}
-                                className={`bg-[#1a2d23] border border-[#2d4a38] rounded-2xl p-4 ${isCompleted ? 'opacity-70' : ''
-                                    }`}
+                                className={`bg - [#1a2d23] border border - [#2d4a38] rounded - 2xl p - 4 ${isCompleted ? 'opacity-70' : ''
+                                    } `}
                             >
                                 <div className="flex items-start justify-between mb-3">
                                     <div className="flex items-center gap-3 flex-1">
-                                        <div className={`size-10 rounded-full ${getIconBgColor(task.categoryColor)} flex items-center justify-center`}>
+                                        <div className={`size - 10 rounded - full ${getIconBgColor(task.categoryColor)} flex items - center justify - center`}>
                                             <span className="material-symbols-outlined text-white text-[20px]">
                                                 {task.category === 'Deep Work' ? 'psychology' : task.category === 'Health' ? 'favorite' : 'work'}
                                             </span>
                                         </div>
                                         <div className="flex-1">
-                                            <h3 className={`text-white font-bold text-base ${isCompleted ? 'line-through' : ''}`}>
+                                            <h3 className={`text - white font - bold text - base ${isCompleted ? 'line-through' : ''} `}>
                                                 {task.title}
                                             </h3>
                                             <p className="text-white/50 text-xs mt-0.5">
-                                                {task.deadline ? `Target: ${task.deadline}` : `${task.estimatedHours}h estimated`}
+                                                {task.deadline ? `Target: ${task.deadline} ` : `${task.estimatedHours}h estimated`}
                                             </p>
                                         </div>
                                     </div>
@@ -264,10 +309,10 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                                         {/* Completion Toggle */}
                                         <button
                                             onClick={() => handleToggleComplete(task.id, task.isCompleted)}
-                                            className={`size-8 rounded-full flex items-center justify-center transition-all ${isCompleted
+                                            className={`size - 8 rounded - full flex items - center justify - center transition - all ${isCompleted
                                                 ? 'bg-primary text-black'
                                                 : 'border-2 border-white/30 text-transparent hover:border-primary'
-                                                }`}
+                                                } `}
                                         >
                                             {isCompleted && <span className="material-symbols-outlined text-[18px] font-bold">check</span>}
                                         </button>
@@ -283,8 +328,8 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                                         </div>
                                         <div className="relative w-full h-2 bg-[#111814] rounded-full overflow-hidden mb-1">
                                             <div
-                                                className={`absolute left-0 top-0 h-full rounded-full transition-all duration-300 ${getGradient(task.categoryColor)}`}
-                                                style={{ width: `${task.progress}%` }}
+                                                className={`absolute left - 0 top - 0 h - full rounded - full transition - all duration - 300 ${getGradient(task.categoryColor)} `}
+                                                style={{ width: `${task.progress}% ` }}
                                             />
                                         </div>
                                         <input
@@ -328,12 +373,55 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                                 {/* Timer Toggle Button */}
                                 {!hasTimer && !isCompleted && (
                                     <button
-                                        onClick={() => toggleTimer(task.id)}
+                                        onClick={() => {
+                                            setPendingTimerTaskId(task.id);
+                                            setIsTimerModalOpen(true);
+                                        }}
                                         className="w-full mt-2 py-2 bg-[#111814] border border-[#2d4a38] rounded-xl text-white/70 text-sm font-medium hover:text-primary hover:border-primary/50 transition-all flex items-center justify-center gap-2"
                                     >
                                         <span className="material-symbols-outlined text-[18px]">timer</span>
                                         Start Timer
                                     </button>
+                                )}
+
+                                {/* Linking Section */}
+                                {!isCompleted && (
+                                    <div className="mt-3 pt-3 border-t border-surface-border">
+                                        {task.long_task_id ? (
+                                            <div className="flex items-center justify-between text-sm">
+                                                <span className="text-white/60 flex items-center gap-1">
+                                                    <span className="material-symbols-outlined text-[16px]">link</span>
+                                                    {longerTasks.find(lt => lt.id === task.long_task_id)?.title || 'Linked Task'}
+                                                </span>
+                                                <button
+                                                    onClick={() => handleLinkToLongerTask(task.id, null)}
+                                                    className="text-red-400 text-xs hover:text-red-300 transition-colors"
+                                                >
+                                                    Unlink
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <select
+                                                value=""
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    if (value === 'create-new') {
+                                                        setPendingLinkTaskId(task.id);
+                                                        setIsLongerTaskModalOpen(true);
+                                                    } else if (value) {
+                                                        handleLinkToLongerTask(task.id, value);
+                                                    }
+                                                }}
+                                                className="w-full bg-[#111814] border border-surface-border rounded-lg px-3 py-2 text-white/70 text-sm focus:outline-none focus:border-primary transition-colors"
+                                            >
+                                                <option value="">Link to Longer Task...</option>
+                                                {longerTasks.map(lt => (
+                                                    <option key={lt.id} value={lt.id}>{lt.title}</option>
+                                                ))}
+                                                <option value="create-new">+ Create New Long Task</option>
+                                            </select>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         );
@@ -375,6 +463,30 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                 variant="danger"
                 onConfirm={confirmDelete}
                 onCancel={() => setDeleteConfirm({ isOpen: false, taskId: null })}
+            />
+
+            <AddLongerTaskModal
+                isOpen={isLongerTaskModalOpen}
+                userId={user!.id}
+                onClose={() => {
+                    setIsLongerTaskModalOpen(false);
+                    setPendingLinkTaskId(null);
+                }}
+                onSave={handleCreateAndLinkLongerTask}
+            />
+
+            <TimerDurationModal
+                isOpen={isTimerModalOpen}
+                onClose={() => {
+                    setIsTimerModalOpen(false);
+                    setPendingTimerTaskId(null);
+                }}
+                onStart={(minutes) => {
+                    if (pendingTimerTaskId) {
+                        toggleTimer(pendingTimerTaskId, minutes);
+                        setPendingTimerTaskId(null);
+                    }
+                }}
             />
         </div>
     );
