@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Task, FilterType } from '../types';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useTaskStore } from '../src/stores/taskStore';
@@ -33,32 +33,42 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
         isOpen: false,
         task: null,
     });
+    const [activeTimers, setActiveTimers] = useState<Record<string, { seconds: number; isRunning: boolean }>>({});
+    const [timerDialog, setTimerDialog] = useState<{ isOpen: boolean; taskId: string | null }>({
+        isOpen: false,
+        taskId: null,
+    });
+    const [timerDuration, setTimerDuration] = useState({ hours: 0, minutes: 25 });
+
+    // Timer countdown logic
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setActiveTimers((prev) => {
+                const updated = { ...prev };
+                Object.keys(updated).forEach((taskId) => {
+                    if (updated[taskId].isRunning && updated[taskId].seconds > 0) {
+                        updated[taskId].seconds -= 1;
+
+                        // Notify when timer completes
+                        if (updated[taskId].seconds === 0) {
+                            toast.success('Timer completed! 🎉', { duration: 5000 });
+                            updated[taskId].isRunning = false;
+                        }
+                    }
+                });
+                return updated;
+            });
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     const handleProgressChange = async (id: string, newProgress: number) => {
         const task = tasks.find(t => t.id === id);
         if (!task) return;
 
-        // Update progress
+        // Update progress only
         updateProgress(id, newProgress);
-
-        // Auto-complete when reaching 100%
-        if (newProgress === 100 && !task.isCompleted) {
-            try {
-                await toggleComplete(id, false); // false because current state is not completed
-                toast.success('Task completed! 🎉');
-            } catch (error) {
-                toast.error('Failed to complete task');
-            }
-        }
-        // Auto-reopen when dragging below 100%
-        else if (newProgress < 100 && task.isCompleted) {
-            try {
-                await toggleComplete(id, true); // true because current state is completed
-                toast.success('Task reopened');
-            } catch (error) {
-                toast.error('Failed to reopen task');
-            }
-        }
     };
 
     const handleToggleComplete = async (id: string, isCompleted: boolean) => {
@@ -122,6 +132,57 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
         } catch (error) {
             toast.error('Failed to reschedule task');
         }
+    };
+
+    const handleStartTimer = (taskId: string) => {
+        setTimerDialog({ isOpen: true, taskId });
+    };
+
+    const confirmStartTimer = () => {
+        if (!timerDialog.taskId) return;
+
+        const totalSeconds = (timerDuration.hours * 3600) + (timerDuration.minutes * 60);
+
+        if (totalSeconds === 0) {
+            toast.error('Please set a timer duration');
+            return;
+        }
+
+        setActiveTimers((prev) => ({
+            ...prev,
+            [timerDialog.taskId!]: { seconds: totalSeconds, isRunning: true },
+        }));
+
+        setTimerDialog({ isOpen: false, taskId: null });
+        setTimerDuration({ hours: 0, minutes: 25 });
+        toast.success('Timer started!');
+    };
+
+    const toggleTimer = (taskId: string) => {
+        setActiveTimers((prev) => ({
+            ...prev,
+            [taskId]: { ...prev[taskId], isRunning: !prev[taskId].isRunning },
+        }));
+    };
+
+    const stopTimer = (taskId: string) => {
+        setActiveTimers((prev) => {
+            const updated = { ...prev };
+            delete updated[taskId];
+            return updated;
+        });
+        toast.success('Timer stopped');
+    };
+
+    const formatTime = (seconds: number) => {
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+
+        if (hrs > 0) {
+            return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
     const getColorClasses = (color: string, isBg = false) => {
@@ -227,6 +288,13 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                                 </div>
                                 <div className="flex gap-2">
                                     <button
+                                        onClick={() => handleStartTimer(task.id)}
+                                        className="text-white/40 hover:text-primary transition-colors"
+                                        title="Start timer"
+                                    >
+                                        <span className="material-symbols-outlined">timer</span>
+                                    </button>
+                                    <button
                                         onClick={() => setPushToLater({ isOpen: true, task })}
                                         className="text-white/40 hover:text-primary transition-colors"
                                         title="Push to later"
@@ -249,6 +317,36 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                                     </button>
                                 </div>
                             </div>
+
+                            {/* Timer Display */}
+                            {activeTimers[task.id] && (
+                                <div className="mb-3 bg-[#111814] border border-surface-border rounded-xl p-3 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <span className="material-symbols-outlined text-primary text-[24px]">timer</span>
+                                        <span className="text-white text-2xl font-mono font-bold tracking-wider">
+                                            {formatTime(activeTimers[task.id].seconds)}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => stopTimer(task.id)}
+                                            className="size-8 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"
+                                            title="Stop timer"
+                                        >
+                                            <span className="material-symbols-outlined text-white text-[18px]">stop</span>
+                                        </button>
+                                        <button
+                                            onClick={() => toggleTimer(task.id)}
+                                            className="size-10 bg-primary rounded-lg flex items-center justify-center hover:brightness-110 transition-all shadow-glow"
+                                            title={activeTimers[task.id].isRunning ? 'Pause' : 'Play'}
+                                        >
+                                            <span className="material-symbols-outlined text-black text-[20px]">
+                                                {activeTimers[task.id].isRunning ? 'pause' : 'play_arrow'}
+                                            </span>
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Interactive Progress Bar */}
                             <div className="mb-3">
@@ -276,11 +374,23 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                                 />
                             </div>
 
-                            <div className="flex items-center justify-between pt-2 border-t border-surface-border">
+                            <div className="flex items-center justify-between pt-3 border-t border-surface-border">
                                 <div className="flex items-center gap-2 text-sm text-[#9db9a8]">
                                     <span className="material-symbols-outlined text-base">schedule</span>
                                     <span>{task.estimatedHours}h estimated{task.deadline ? ` • Due ${task.deadline}` : ''}</span>
                                 </div>
+                                <button
+                                    onClick={() => handleToggleComplete(task.id, task.isCompleted)}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-border hover:bg-primary/20 border border-transparent hover:border-primary text-white/70 hover:text-primary transition-all group"
+                                >
+                                    <div className={`size-5 rounded-md flex items-center justify-center transition-all ${task.isCompleted
+                                            ? 'bg-primary text-black'
+                                            : 'border-2 border-white/30 group-hover:border-primary'
+                                        }`}>
+                                        {task.isCompleted && <span className="material-symbols-outlined text-[16px] font-bold">check</span>}
+                                    </div>
+                                    <span className="text-sm font-medium">Mark as Complete</span>
+                                </button>
                             </div>
                         </div>
                     );
@@ -319,6 +429,97 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                 onConfirm={handlePushToLater}
                 onClose={() => setPushToLater({ isOpen: false, task: null })}
             />
+
+            {/* Timer Duration Dialog */}
+            {timerDialog.isOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-surface-dark border border-surface-border rounded-2xl p-6 w-full max-w-md shadow-2xl">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <span className="material-symbols-outlined text-primary">timer</span>
+                                Set Timer Duration
+                            </h3>
+                            <button
+                                onClick={() => setTimerDialog({ isOpen: false, taskId: null })}
+                                className="text-white/40 hover:text-white transition-colors"
+                            >
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+
+                        <p className="text-white/60 text-sm mb-6">
+                            How long would you like to work on this task?
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-4 mb-6">
+                            <div>
+                                <label className="block text-white/80 text-sm font-medium mb-2">Hours</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="23"
+                                    value={timerDuration.hours}
+                                    onChange={(e) => setTimerDuration({ ...timerDuration, hours: parseInt(e.target.value) || 0 })}
+                                    className="w-full bg-[#111814] border border-surface-border rounded-xl px-4 py-3 text-white text-center text-2xl font-mono focus:outline-none focus:border-primary transition-colors"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-white/80 text-sm font-medium mb-2">Minutes</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="59"
+                                    value={timerDuration.minutes}
+                                    onChange={(e) => setTimerDuration({ ...timerDuration, minutes: parseInt(e.target.value) || 0 })}
+                                    className="w-full bg-[#111814] border border-surface-border rounded-xl px-4 py-3 text-white text-center text-2xl font-mono focus:outline-none focus:border-primary transition-colors"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2 mb-4">
+                            <button
+                                onClick={() => setTimerDuration({ hours: 0, minutes: 15 })}
+                                className="flex-1 py-2 bg-surface-border hover:bg-primary/20 hover:border-primary border border-transparent rounded-lg text-white/70 hover:text-primary text-sm transition-all"
+                            >
+                                15 min
+                            </button>
+                            <button
+                                onClick={() => setTimerDuration({ hours: 0, minutes: 25 })}
+                                className="flex-1 py-2 bg-surface-border hover:bg-primary/20 hover:border-primary border border-transparent rounded-lg text-white/70 hover:text-primary text-sm transition-all"
+                            >
+                                25 min
+                            </button>
+                            <button
+                                onClick={() => setTimerDuration({ hours: 0, minutes: 45 })}
+                                className="flex-1 py-2 bg-surface-border hover:bg-primary/20 hover:border-primary border border-transparent rounded-lg text-white/70 hover:text-primary text-sm transition-all"
+                            >
+                                45 min
+                            </button>
+                            <button
+                                onClick={() => setTimerDuration({ hours: 1, minutes: 0 })}
+                                className="flex-1 py-2 bg-surface-border hover:bg-primary/20 hover:border-primary border border-transparent rounded-lg text-white/70 hover:text-primary text-sm transition-all"
+                            >
+                                1 hour
+                            </button>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setTimerDialog({ isOpen: false, taskId: null })}
+                                className="flex-1 py-3 bg-surface-border hover:bg-white/10 rounded-xl text-white font-medium transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmStartTimer}
+                                className="flex-1 py-3 bg-primary hover:brightness-110 rounded-xl text-black font-bold transition-all shadow-glow"
+                            >
+                                Start Timer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

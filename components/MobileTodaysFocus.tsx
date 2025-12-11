@@ -63,26 +63,8 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
         const task = tasks.find((t) => t.id === id);
         if (!task) return;
 
+        // Update progress only
         updateProgress(id, newProgress);
-
-        // Auto-complete when reaching 100%
-        if (newProgress === 100 && !task.isCompleted) {
-            try {
-                await toggleComplete(id, false);
-                toast.success('Task completed! 🎉');
-            } catch (error) {
-                toast.error('Failed to complete task');
-            }
-        }
-        // Auto-reopen when dragging below 100%
-        else if (newProgress < 100 && task.isCompleted) {
-            try {
-                await toggleComplete(id, true);
-                toast.success('Task reopened');
-            } catch (error) {
-                toast.error('Failed to reopen task');
-            }
-        }
     };
 
     const handleEditTask = (task: Task) => {
@@ -283,8 +265,8 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                                         <button
                                             onClick={() => handleToggleComplete(task.id, task.isCompleted)}
                                             className={`size-8 rounded-full flex items-center justify-center transition-all ${isCompleted
-                                                    ? 'bg-primary text-black'
-                                                    : 'border-2 border-white/30 text-transparent hover:border-primary'
+                                                ? 'bg-primary text-black'
+                                                : 'border-2 border-white/30 text-transparent hover:border-primary'
                                                 }`}
                                         >
                                             {isCompleted && <span className="material-symbols-outlined text-[18px] font-bold">check</span>}
