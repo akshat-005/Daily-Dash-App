@@ -62,7 +62,8 @@ Whether you're a student, professional, or anyone looking to boost productivity,
 
 ## 📸 Screenshots
 
-<video src="‎DailyDash Demo (1).mp4" width="600" controls></video>
+https://github.com/user-attachments/assets/f6e4f3a4-58c8-4a8b-916e-e1097e70a9c1
+
 
 ---
 
