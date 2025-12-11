@@ -7,6 +7,7 @@ export const fetchTasks = async (userId: string, date: string): Promise<Task[]> 
         .select('*')
         .eq('user_id', userId)
         .eq('scheduled_date', date)
+        .or('is_longer_task.eq.false,is_longer_task.is.null') // Exclude longer tasks
         .order('created_at', { ascending: true }); // Changed from start_time
 
     if (error) throw error;

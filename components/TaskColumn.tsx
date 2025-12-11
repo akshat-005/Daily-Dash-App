@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Task, FilterType } from '../types';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useTaskStore } from '../src/stores/taskStore';
+import { useLongerTaskStore } from '../src/stores/longerTaskStore';
 import TaskModal from '../src/components/TaskModal';
 import ConfirmDialog from '../src/components/ConfirmDialog';
 import PushToLaterDialog from '../src/components/PushToLaterDialog';
+import AddLongerTaskModal from '../src/components/AddLongerTaskModal';
 import toast from 'react-hot-toast';
 import { formatDate } from '../src/utils/dateUtils';
 
@@ -22,6 +24,9 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
     const deleteTask = useTaskStore((state) => state.deleteTask);
     const updateProgress = useTaskStore((state) => state.updateProgress);
     const toggleComplete = useTaskStore((state) => state.toggleComplete);
+    const linkToLongerTask = useTaskStore((state) => state.linkToLongerTask);
+
+    const { longerTasks, fetchLongerTasks, createLongerTask } = useLongerTaskStore();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -39,6 +44,8 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
         taskId: null,
     });
     const [timerDuration, setTimerDuration] = useState({ hours: 0, minutes: 25 });
+    const [isLongerTaskModalOpen, setIsLongerTaskModalOpen] = useState(false);
+    const [pendingLinkTaskId, setPendingLinkTaskId] = useState<string | null>(null);
 
     // Timer countdown logic
     useEffect(() => {
@@ -374,6 +381,69 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                                 />
                             </div>
 
+                            {/* Linking Section */}
+                            <div className="pt-3 border-t border-surface-border">
+                                {task.long_task_id ? (
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div
+                                            className="flex items-center gap-2 text-sm text-primary/80 cursor-pointer hover:text-primary transition-colors"
+                                            onClick={() => {
+                                                const longerTask = longerTasks.find(lt => lt.id === task.long_task_id);
+                                                if (longerTask) {
+                                                    // Could open details modal here
+                                                    toast.success(`Linked to: ${longerTask.title}`);
+                                                }
+                                            }}
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">link</span>
+                                            <span>Linked to: {longerTasks.find(lt => lt.id === task.long_task_id)?.title || 'Unknown'}</span>
+                                            <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    await linkToLongerTask(task.id, null);
+                                                    toast.success('Task unlinked');
+                                                } catch (error) {
+                                                    toast.error('Failed to unlink');
+                                                }
+                                            }}
+                                            className="text-white/40 hover:text-red-500 transition-colors"
+                                            title="Unlink"
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">link_off</span>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="mb-2">
+                                        <select
+                                            value=""
+                                            onChange={async (e) => {
+                                                const value = e.target.value;
+                                                if (value === 'create-new') {
+                                                    setPendingLinkTaskId(task.id);
+                                                    setIsLongerTaskModalOpen(true);
+                                                } else if (value) {
+                                                    try {
+                                                        await linkToLongerTask(task.id, value);
+                                                        toast.success('Task linked!');
+                                                    } catch (error) {
+                                                        toast.error('Failed to link');
+                                                    }
+                                                }
+                                            }}
+                                            className="w-full bg-[#111814] border border-surface-border rounded-lg px-3 py-2 text-white/70 text-sm focus:outline-none focus:border-primary transition-colors cursor-pointer"
+                                        >
+                                            <option value="">Link to Longer Task...</option>
+                                            {longerTasks.map(lt => (
+                                                <option key={lt.id} value={lt.id}>{lt.title}</option>
+                                            ))}
+                                            <option value="create-new">+ Create New Long Task</option>
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="flex items-center justify-between pt-3 border-t border-surface-border">
                                 <div className="flex items-center gap-2 text-sm text-[#9db9a8]">
                                     <span className="material-symbols-outlined text-base">schedule</span>
@@ -384,8 +454,8 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-border hover:bg-primary/20 border border-transparent hover:border-primary text-white/70 hover:text-primary transition-all group"
                                 >
                                     <div className={`size-5 rounded-md flex items-center justify-center transition-all ${task.isCompleted
-                                            ? 'bg-primary text-black'
-                                            : 'border-2 border-white/30 group-hover:border-primary'
+                                        ? 'bg-primary text-black'
+                                        : 'border-2 border-white/30 group-hover:border-primary'
                                         }`}>
                                         {task.isCompleted && <span className="material-symbols-outlined text-[16px] font-bold">check</span>}
                                     </div>
@@ -519,6 +589,27 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Longer Task Modal */}
+            {isLongerTaskModalOpen && (
+                <AddLongerTaskModal
+                    isOpen={isLongerTaskModalOpen}
+                    userId={user!.id}
+                    onClose={() => {
+                        setIsLongerTaskModalOpen(false);
+                        setPendingLinkTaskId(null);
+                    }}
+                    onSave={async (taskData) => {
+                        await createLongerTask(taskData);
+                        const newLongerTask = useLongerTaskStore.getState().longerTasks[0];
+                        if (pendingLinkTaskId && newLongerTask) {
+                            await linkToLongerTask(pendingLinkTaskId, newLongerTask.id);
+                            toast.success('Longer task created and linked!');
+                        }
+                        setPendingLinkTaskId(null);
+                    }}
+                />
             )}
         </div>
     );

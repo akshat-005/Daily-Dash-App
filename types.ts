@@ -12,6 +12,22 @@ export interface Task {
     completed_at?: string;
     created_at?: string;
     updated_at?: string;
+    // Longer task fields
+    is_longer_task?: boolean;
+    long_task_id?: string; // Link to parent longer task
+    description?: string;
+}
+
+export interface LongerTask {
+    id: string;
+    user_id: string;
+    title: string;
+    description?: string;
+    progress: number;
+    deadline?: string; // Date string
+    is_longer_task: boolean;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface Day {

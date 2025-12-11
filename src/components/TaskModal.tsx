@@ -77,7 +77,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             setDeadlineMinute('00');
             setDeadlinePeriod('PM');
         }
-    }, [task, isOpen, existingCategories]);
+    }, [task, isOpen]); // Removed existingCategories from dependencies
 
     const handleCategorySelectChange = (value: string) => {
         if (value === '__new__') {
@@ -208,8 +208,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
                                     type="button"
                                     onClick={() => setCategoryColor(color)}
                                     className={`size-10 rounded-full transition-all ${categoryColor === color
-                                            ? 'ring-2 ring-white ring-offset-2 ring-offset-surface-dark scale-110'
-                                            : 'hover:scale-105'
+                                        ? 'ring-2 ring-white ring-offset-2 ring-offset-surface-dark scale-110'
+                                        : 'hover:scale-105'
                                         } ${color === 'indigo' ? 'bg-indigo-500' :
                                             color === 'primary' ? 'bg-primary' :
                                                 color === 'emerald' ? 'bg-emerald-500' :
@@ -248,8 +248,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
                                 type="button"
                                 onClick={() => setHasDeadline(!hasDeadline)}
                                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${hasDeadline
-                                        ? 'bg-primary text-black'
-                                        : 'bg-surface-border text-white hover:bg-[#3b5445]'
+                                    ? 'bg-primary text-black'
+                                    : 'bg-surface-border text-white hover:bg-[#3b5445]'
                                     }`}
                             >
                                 {hasDeadline ? 'Remove' : 'Add Deadline'}

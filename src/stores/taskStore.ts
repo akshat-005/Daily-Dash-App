@@ -16,6 +16,8 @@ interface TaskStore {
     deleteTask: (id: string) => Promise<void>;
     updateProgress: (id: string, progress: number) => Promise<void>;
     toggleComplete: (id: string, isCompleted: boolean) => Promise<void>;
+    linkToLongerTask: (dailyTaskId: string, longerTaskId: string | null) => Promise<void>;
+    updateLinkedLongerTaskProgress: (longerTaskId: string) => Promise<void>;
     subscribeToTasks: (userId: string, date: string) => () => void;
 }
 
@@ -73,6 +75,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     },
 
     updateProgress: async (id, progress) => {
+        const task = get().tasks.find(t => t.id === id);
+
         // Optimistically update UI
         set((state) => ({
             tasks: state.tasks.map((task) =>
@@ -81,16 +85,111 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         }));
 
         try {
-            await taskApi.updateProgress(id, progress); // Assuming taskApi.updateProgress is the correct function
+            await taskApi.updateProgress(id, progress);
+
+            // If linked to a longer task, update its progress
+            if (task?.long_task_id) {
+                await get().updateLinkedLongerTaskProgress(task.long_task_id);
+            }
         } catch (error: any) {
             console.error('Failed to update progress:', error);
             // Revert on error
-            // Re-fetch tasks to revert the optimistic update
             await get().fetchTasks(
                 get().tasks[0]?.user_id || '',
                 get().tasks[0]?.scheduled_date || ''
             );
             set({ error: error.message });
+        }
+    },
+
+    linkToLongerTask: async (dailyTaskId, longerTaskId) => {
+        try {
+            const { error } = await supabase
+                .from('tasks')
+                .update({ long_task_id: longerTaskId })
+                .eq('id', dailyTaskId);
+
+            if (error) throw error;
+
+            set((state) => ({
+                tasks: state.tasks.map((t) =>
+                    t.id === dailyTaskId ? { ...t, long_task_id: longerTaskId } : t
+                ),
+            }));
+
+            // Update longer task progress if linking (not unlinking)
+            if (longerTaskId) {
+                await get().updateLinkedLongerTaskProgress(longerTaskId);
+            }
+        } catch (error: any) {
+            console.error('Failed to link task:', error);
+            set({ error: error.message });
+            throw error;
+        }
+    },
+
+    updateLinkedLongerTaskProgress: async (longerTaskId) => {
+        try {
+            // Fetch the longer task to get its total estimated hours
+            const { data: longerTask, error: longerTaskError } = await supabase
+                .from('tasks')
+                .select('estimated_hours')
+                .eq('id', longerTaskId)
+                .single();
+
+            if (longerTaskError) throw longerTaskError;
+
+            const longerTaskTotalHours = longerTask?.estimated_hours || 0;
+
+            // Fetch all daily tasks linked to this longer task
+            const { data: linkedTasks, error } = await supabase
+                .from('tasks')
+                .select('*')
+                .eq('long_task_id', longerTaskId)
+                .or('is_longer_task.eq.false,is_longer_task.is.null');
+
+            if (error) throw error;
+
+            if (!linkedTasks || linkedTasks.length === 0) {
+                // No linked tasks, set progress to 0
+                await supabase
+                    .from('tasks')
+                    .update({ progress: 0 })
+                    .eq('id', longerTaskId);
+                return;
+            }
+
+            let newProgress = 0;
+
+            if (longerTaskTotalHours > 0) {
+                // Calculate completed hours from all linked daily tasks
+                const completedHours = linkedTasks.reduce((sum, t) =>
+                    sum + ((t.estimated_hours || 0) * (t.progress || 0) / 100), 0
+                );
+
+                // Progress = (completed hours / longer task's total hours) * 100
+                newProgress = Math.round((completedHours / longerTaskTotalHours) * 100);
+            } else {
+                // Fallback: Average progress of all linked tasks if no total hours set
+                const totalProgress = linkedTasks.reduce((sum, t) => sum + (t.progress || 0), 0);
+                newProgress = Math.round(totalProgress / linkedTasks.length);
+            }
+
+            // Cap at 100%
+            newProgress = Math.min(100, Math.max(0, newProgress));
+
+            // Update longer task progress
+            await supabase
+                .from('tasks')
+                .update({
+                    progress: newProgress,
+                    is_completed: newProgress === 100,
+                    completed_at: newProgress === 100 ? new Date().toISOString() : null,
+                })
+                .eq('id', longerTaskId);
+
+        } catch (error: any) {
+            console.error('Failed to update longer task progress:', error);
         }
     },
 
