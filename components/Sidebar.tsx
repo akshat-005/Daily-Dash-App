@@ -76,6 +76,19 @@ const Sidebar: React.FC<SidebarProps> = ({ currentDate, onDateSelect }) => {
 
   return (
     <div className="lg:col-span-3 flex flex-col gap-4">
+      {/* User Greeting */}
+      <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-5">
+        <p className="text-white/50 text-xs font-medium uppercase tracking-wide mb-1">
+          {format(currentDate, 'EEEE, MMMM d, yyyy')}
+        </p>
+        <h2 className="text-white text-2xl font-bold mb-1">
+          Hi, {user?.email?.split('@')[0] || 'User'}! 👋
+        </h2>
+        <p className="text-white/60 text-sm">
+          Let's make today productive
+        </p>
+      </div>
+
       {/* Calendar Widget */}
       <div className="bg-surface-dark border border-surface-border rounded-2xl p-4 shadow-card">
         <div className="flex items-center justify-between mb-4">

@@ -17,24 +17,13 @@ const Header: React.FC = () => {
 
   return (
     <header className="flex items-center justify-between border-b border-surface-border px-4 py-2.5 sticky top-0 z-50 bg-[#111814]/90 backdrop-blur-md">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <div className="size-7 text-primary flex items-center justify-center">
-            <span className="material-symbols-outlined text-[24px]">dashboard</span>
-          </div>
-          <h1 className="text-white text-lg font-bold tracking-tight">
-            Daily<span className="text-primary">Dash</span>
-          </h1>
+      <div className="flex items-center gap-2">
+        <div className="size-7 text-primary flex items-center justify-center">
+          <span className="material-symbols-outlined text-[24px]">dashboard</span>
         </div>
-        <div className="hidden md:block h-6 w-px bg-surface-border"></div>
-        <div className="hidden md:block">
-          <p className="text-white/50 text-xs font-medium uppercase tracking-wide">
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-          </p>
-          <h2 className="text-white text-base font-bold">
-            Hi, {user?.email?.split('@')[0] || 'User'}! 👋
-          </h2>
-        </div>
+        <h1 className="text-white text-lg font-bold tracking-tight">
+          Daily<span className="text-primary">Dash</span>
+        </h1>
       </div>
       <div className="flex items-center gap-2">
         <button className="flex items-center justify-center rounded-full size-9 bg-surface-border text-white hover:bg-primary hover:text-black transition-colors">
