@@ -9,7 +9,6 @@ import StatsColumn from './components/StatsColumn';
 import LoadingSpinner from './src/components/LoadingSpinner';
 import MobileView from './components/MobileView';
 import { useTaskStore } from './src/stores/taskStore';
-import { useReflectionStore } from './src/stores/reflectionStore';
 import { useStatsStore } from './src/stores/statsStore';
 import { formatDate, formatDisplayDate, addDays } from './src/utils/dateUtils';
 import { useMediaQuery } from './src/utils/useMediaQuery';
@@ -21,7 +20,6 @@ const DashboardContent: React.FC = () => {
 
   const fetchTasks = useTaskStore((state) => state.fetchTasks);
   const subscribeToTasks = useTaskStore((state) => state.subscribeToTasks);
-  const fetchReflection = useReflectionStore((state) => state.fetchReflection);
   const fetchStreak = useStatsStore((state) => state.fetchStreak);
   const fetchDailyStats = useStatsStore((state) => state.fetchDailyStats);
   const fetchWeeklyMomentum = useStatsStore((state) => state.fetchWeeklyMomentum);
@@ -32,7 +30,6 @@ const DashboardContent: React.FC = () => {
 
       // Fetch all data for current date
       fetchTasks(user.id, dateStr);
-      fetchReflection(user.id, dateStr);
       fetchStreak(user.id);
       fetchDailyStats(user.id, dateStr);
       fetchWeeklyMomentum(user.id);
