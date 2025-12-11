@@ -414,6 +414,6 @@ If you find DailyDash useful, please consider giving it a star on GitHub! It hel
 
 ---
 
-**Built with ❤️ and ☕ by [Your Name]**
+**Built with ❤️ and ☕ by Akshat**
 
 *Stay productive, build momentum, and crush your goals with DailyDash!* 🚀
