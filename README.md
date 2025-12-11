@@ -60,6 +60,12 @@ Whether you're a student, professional, or anyone looking to boost productivity,
 
 ---
 
+## 📸 Screenshots
+
+<video src="‎DailyDash Demo (1).mp4" width="600" controls></video>
+
+---
+
 ## 📦 Installation
 
 ### Prerequisites
@@ -334,12 +340,6 @@ If you encounter any issues or have questions:
 - **Vite** for the lightning-fast build tool
 - **Material Symbols** for the beautiful icon set
 - **Google Fonts** for Spline Sans typography
-
----
-
-## 📸 Screenshots
-
-> **Note:** Add screenshots of your application here to showcase the UI
 
 ---
 
