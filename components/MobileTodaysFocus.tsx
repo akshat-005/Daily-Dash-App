@@ -3,8 +3,10 @@ import { Task } from '../types';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useTaskStore } from '../src/stores/taskStore';
 import TaskModal from '../src/components/TaskModal';
+import PushToLaterDialog from '../src/components/PushToLaterDialog';
+import ConfirmDialog from '../src/components/ConfirmDialog';
 import toast from 'react-hot-toast';
-import { formatDate } from '../src/utils/dateUtils';
+import { formatDate, addDays } from '../src/utils/dateUtils';
 
 interface MobileTodaysFocusProps {
     currentDate: Date;
@@ -15,10 +17,21 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
     const tasks = useTaskStore((state) => state.tasks);
     const toggleComplete = useTaskStore((state) => state.toggleComplete);
     const updateTask = useTaskStore((state) => state.updateTask);
+    const updateProgress = useTaskStore((state) => state.updateProgress);
+    const deleteTask = useTaskStore((state) => state.deleteTask);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [activeTimers, setActiveTimers] = useState<Record<string, { seconds: number; isRunning: boolean }>>({});
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [pushToLater, setPushToLater] = useState<{ isOpen: boolean; task: Task | null }>({
+        isOpen: false,
+        task: null,
+    });
+    const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; taskId: string | null }>({
+        isOpen: false,
+        taskId: null,
+    });
 
     // Timer logic
     useEffect(() => {
@@ -46,9 +59,67 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
         }
     };
 
+    const handleProgressChange = async (id: string, newProgress: number) => {
+        const task = tasks.find((t) => t.id === id);
+        if (!task) return;
+
+        updateProgress(id, newProgress);
+
+        // Auto-complete when reaching 100%
+        if (newProgress === 100 && !task.isCompleted) {
+            try {
+                await toggleComplete(id, false);
+                toast.success('Task completed! 🎉');
+            } catch (error) {
+                toast.error('Failed to complete task');
+            }
+        }
+        // Auto-reopen when dragging below 100%
+        else if (newProgress < 100 && task.isCompleted) {
+            try {
+                await toggleComplete(id, true);
+                toast.success('Task reopened');
+            } catch (error) {
+                toast.error('Failed to reopen task');
+            }
+        }
+    };
+
     const handleEditTask = (task: Task) => {
         setEditingTask(task);
         setIsModalOpen(true);
+        setOpenMenuId(null);
+    };
+
+    const handleDeleteTask = (taskId: string) => {
+        setDeleteConfirm({ isOpen: true, taskId });
+        setOpenMenuId(null);
+    };
+
+    const confirmDelete = async () => {
+        if (deleteConfirm.taskId) {
+            try {
+                await deleteTask(deleteConfirm.taskId);
+                toast.success('Task deleted');
+            } catch (error) {
+                toast.error('Failed to delete task');
+            }
+        }
+        setDeleteConfirm({ isOpen: false, taskId: null });
+    };
+
+    const handlePushToLater = async (newDate: Date) => {
+        if (!pushToLater.task) return;
+
+        try {
+            await updateTask(pushToLater.task.id, {
+                scheduled_date: formatDate(newDate),
+            });
+            toast.success(`Task moved to ${newDate.toLocaleDateString()}`);
+            setPushToLater({ isOpen: false, task: null });
+        } catch (error) {
+            toast.error('Failed to reschedule task');
+        }
     };
 
     const handleSaveTask = async (taskData: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => {
@@ -117,14 +188,21 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
         return map[color] || 'bg-gray-500/30';
     };
 
+    const getGradient = (color: string) => {
+        if (color === 'indigo') return 'bg-gradient-to-r from-blue-500 to-indigo-500';
+        const map: Record<string, string> = {
+            primary: 'bg-primary',
+            emerald: 'bg-emerald-500',
+            purple: 'bg-purple-500',
+            pink: 'bg-pink-500',
+        };
+        return map[color] || 'bg-gray-500';
+    };
+
     return (
         <div className="px-4 py-3">
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-white text-lg font-bold">Today's Focus</h2>
-                <button className="text-primary text-sm font-medium flex items-center gap-1">
-                    Edit
-                    <span className="material-symbols-outlined text-[16px]">edit</span>
-                </button>
             </div>
 
             <div className="flex flex-col gap-3">
@@ -136,6 +214,7 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                     tasks.map((task) => {
                         const hasTimer = activeTimers[task.id];
                         const isCompleted = task.isCompleted;
+                        const isMenuOpen = openMenuId === task.id;
 
                         return (
                             <div
@@ -159,16 +238,83 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                                             </p>
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => handleToggleComplete(task.id, task.isCompleted)}
-                                        className={`size-8 rounded-full flex items-center justify-center transition-all ${isCompleted
-                                                ? 'bg-primary text-black'
-                                                : 'border-2 border-white/30 text-transparent hover:border-primary'
-                                            }`}
-                                    >
-                                        {isCompleted && <span className="material-symbols-outlined text-[18px] font-bold">check</span>}
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        {/* Menu Button */}
+                                        <div className="relative">
+                                            <button
+                                                onClick={() => setOpenMenuId(isMenuOpen ? null : task.id)}
+                                                className="size-8 rounded-full flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                                            >
+                                                <span className="material-symbols-outlined text-[20px]">more_vert</span>
+                                            </button>
+
+                                            {/* Dropdown Menu */}
+                                            {isMenuOpen && (
+                                                <div className="absolute right-0 top-10 bg-[#111814] border border-[#2d4a38] rounded-xl shadow-lg overflow-hidden z-10 min-w-[160px]">
+                                                    <button
+                                                        onClick={() => handleEditTask(task)}
+                                                        className="w-full px-4 py-2 text-left text-sm text-white hover:bg-[#1a2d23] transition-colors flex items-center gap-2"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                        Edit Task
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            setPushToLater({ isOpen: true, task });
+                                                            setOpenMenuId(null);
+                                                        }}
+                                                        className="w-full px-4 py-2 text-left text-sm text-white hover:bg-[#1a2d23] transition-colors flex items-center gap-2"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[18px]">schedule_send</span>
+                                                        Push to Later
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteTask(task.id)}
+                                                        className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                        Delete Task
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Completion Toggle */}
+                                        <button
+                                            onClick={() => handleToggleComplete(task.id, task.isCompleted)}
+                                            className={`size-8 rounded-full flex items-center justify-center transition-all ${isCompleted
+                                                    ? 'bg-primary text-black'
+                                                    : 'border-2 border-white/30 text-transparent hover:border-primary'
+                                                }`}
+                                        >
+                                            {isCompleted && <span className="material-symbols-outlined text-[18px] font-bold">check</span>}
+                                        </button>
+                                    </div>
                                 </div>
+
+                                {/* Progress Slider */}
+                                {!isCompleted && (
+                                    <div className="mb-3">
+                                        <div className="flex justify-between text-xs font-medium text-white/50 mb-1">
+                                            <span>Progress</span>
+                                            <span>{task.progress}%</span>
+                                        </div>
+                                        <div className="relative w-full h-2 bg-[#111814] rounded-full overflow-hidden mb-1">
+                                            <div
+                                                className={`absolute left-0 top-0 h-full rounded-full transition-all duration-300 ${getGradient(task.categoryColor)}`}
+                                                style={{ width: `${task.progress}%` }}
+                                            />
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="100"
+                                            value={task.progress}
+                                            onChange={(e) => handleProgressChange(task.id, parseInt(e.target.value))}
+                                            className="w-full h-2 -mt-2 cursor-pointer appearance-none bg-transparent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-glow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-glow"
+                                        />
+                                    </div>
+                                )}
 
                                 {/* Timer Section */}
                                 {hasTimer && (
@@ -223,7 +369,30 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                     new Map(tasks.map((t) => [t.category, { name: t.category, color: t.categoryColor }])).values()
                 )}
                 onSave={handleSaveTask}
-                onClose={() => setIsModalOpen(false)}
+                onClose={() => {
+                    setIsModalOpen(false);
+                    setEditingTask(null);
+                }}
+            />
+
+            {/* Push to Later Dialog */}
+            <PushToLaterDialog
+                isOpen={pushToLater.isOpen}
+                taskTitle={pushToLater.task?.title || ''}
+                onConfirm={handlePushToLater}
+                onClose={() => setPushToLater({ isOpen: false, task: null })}
+            />
+
+            {/* Delete Confirmation */}
+            <ConfirmDialog
+                isOpen={deleteConfirm.isOpen}
+                title="Delete Task"
+                message="Are you sure you want to delete this task? This action cannot be undone."
+                confirmText="Delete"
+                cancelText="Cancel"
+                variant="danger"
+                onConfirm={confirmDelete}
+                onCancel={() => setDeleteConfirm({ isOpen: false, taskId: null })}
             />
         </div>
     );
