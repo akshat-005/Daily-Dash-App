@@ -1,97 +1,101 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DailyDash</title>
-    
-    <!-- Favicon and App Icons -->
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#2bee79" />
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com" rel="preconnect" />
-    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@300;400;500;600;700&amp;display=swap"
-      rel="stylesheet"
-    />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-      rel="stylesheet"
-    />
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <script>
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            colors: {
-              primary: "#2bee79",
-              "primary-dark": "#23c563",
-              "background-light": "#f6f8f7",
-              "background-dark": "#111814",
-              "surface-dark": "#1A2520",
-              "surface-border": "#28392f",
-            },
-            fontFamily: {
-              display: ["Spline Sans", "sans-serif"],
-            },
-            borderRadius: {
-              DEFAULT: "1rem",
-              lg: "1.5rem",
-              xl: "2rem",
-              "2xl": "3rem",
-              full: "9999px",
-            },
-            boxShadow: {
-              glow: "0 0 15px rgba(43, 238, 121, 0.15)",
-              card: "0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.15)",
-            },
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DailyDash</title>
+
+  <!-- Favicon and App Icons -->
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="apple-touch-icon" href="/app-icon-ios.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#2bee79" />
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com" rel="preconnect" />
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+  <link href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@300;400;500;600;700&amp;display=swap"
+    rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+    rel="stylesheet" />
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#2bee79",
+            "primary-dark": "#23c563",
+            "background-light": "#f6f8f7",
+            "background-dark": "#111814",
+            "surface-dark": "#1A2520",
+            "surface-border": "#28392f",
+          },
+          fontFamily: {
+            display: ["Spline Sans", "sans-serif"],
+          },
+          borderRadius: {
+            DEFAULT: "1rem",
+            lg: "1.5rem",
+            xl: "2rem",
+            "2xl": "3rem",
+            full: "9999px",
+          },
+          boxShadow: {
+            glow: "0 0 15px rgba(43, 238, 121, 0.15)",
+            card: "0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.15)",
           },
         },
-      };
-    </script>
-    <style>
-      /* Custom Scrollbar */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #111814;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #28392f;
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #3b5445;
-      }
+      },
+    };
+  </script>
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
 
-      /* Range Slider Styling */
-      input[type="range"] {
-        -webkit-appearance: none;
-        background: transparent;
-      }
-      input[type="range"]::-webkit-slider-thumb {
-        -webkit-appearance: none;
-      }
-      input[type="range"]:focus {
-        outline: none;
-      }
-      
-      /* Utility for hiding scrollbar but keeping functionality */
-      .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-      }
-      .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-      }
-    </style>
+    ::-webkit-scrollbar-track {
+      background: #111814;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #28392f;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b5445;
+    }
+
+    /* Range Slider Styling */
+    input[type="range"] {
+      -webkit-appearance: none;
+      background: transparent;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+    }
+
+    input[type="range"]:focus {
+      outline: none;
+    }
+
+    /* Utility for hiding scrollbar but keeping functionality */
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
+
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
   <script type="importmap">
 {
   "imports": {
@@ -101,12 +105,13 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
+  <link rel="stylesheet" href="/index.css">
 </head>
-  <body
-    class="bg-background-light dark:bg-background-dark text-[#111814] dark:text-white font-display min-h-screen flex flex-col overflow-x-hidden selection:bg-primary selection:text-black"
-  >
-    <div id="root"></div>
+
+<body
+  class="bg-background-light dark:bg-background-dark text-[#111814] dark:text-white font-display min-h-screen flex flex-col overflow-x-hidden selection:bg-primary selection:text-black">
+  <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
+
 </html>
