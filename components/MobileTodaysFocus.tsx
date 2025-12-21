@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Task } from '../types';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useTaskStore } from '../src/stores/taskStore';
@@ -12,7 +12,7 @@ import TimerDurationModal from '../src/components/TimerDurationModal';
 import toast from 'react-hot-toast';
 import { formatDate, formatDeadlineTime, addDays } from '../src/utils/dateUtils';
 import { formatTimeSpent, formatTimeDifference, isOverEstimate } from '../src/utils/timeUtils';
-import * as timerSessionsApi from '../src/api/timerSessions';
+import { useTimerSync } from '../src/hooks/useTimerSync';
 
 interface MobileTodaysFocusProps {
     currentDate: Date;
@@ -36,7 +36,6 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
     const [pendingLinkTaskId, setPendingLinkTaskId] = useState<string | null>(null);
     const [pendingTimerTaskId, setPendingTimerTaskId] = useState<string | null>(null);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
-    const [activeTimers, setActiveTimers] = useState<Record<string, { seconds: number; isRunning: boolean; sessionId?: string }>>({});
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [pushToLater, setPushToLater] = useState<{ isOpen: boolean; task: Task | null }>({
         isOpen: false,
@@ -47,22 +46,10 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
         taskId: null,
     });
 
-    // Timer logic
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setActiveTimers((prev) => {
-                const updated = { ...prev };
-                Object.keys(updated).forEach((taskId) => {
-                    if (updated[taskId].isRunning && updated[taskId].seconds > 0) {
-                        updated[taskId].seconds -= 1;
-                    }
-                });
-                return updated;
-            });
-        }, 1000);
+    // Use timer sync hook for real-time synchronization
+    const { activeTimers, startTimer, stopTimer, toggleTimer } = useTimerSync(user!.id, currentDate);
 
-        return () => clearInterval(interval);
-    }, []);
+    // Timer countdown is now handled by useTimerSync hook
 
     const handleToggleComplete = async (id: string, isCompleted: boolean) => {
         try {
@@ -129,49 +116,30 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
         }
     };
 
-    const toggleTimer = async (taskId: string, customMinutes?: number) => {
-        const timer = activeTimers[taskId];
-
-        if (!timer && customMinutes !== undefined) {
-            // Start new timer with database session
-            const totalSeconds = customMinutes * 60;
-            try {
-                const session = await timerSessionsApi.startTimerSession(taskId, user!.id);
-                setActiveTimers((prev) => ({
-                    ...prev,
-                    [taskId]: { seconds: totalSeconds, isRunning: true, sessionId: session.id },
-                }));
-                toast.success('Timer started!');
-            } catch (error) {
-                console.error('Failed to start timer session:', error);
-                toast.error('Failed to start timer');
-            }
-        } else if (timer) {
-            // Toggle pause/play
-            setActiveTimers((prev) => ({
-                ...prev,
-                [taskId]: { ...timer, isRunning: !timer.isRunning },
-            }));
+    const handleStartTimer = async (taskId: string, customMinutes: number) => {
+        try {
+            await startTimer(taskId, customMinutes);
+        } catch (error) {
+            // Error already handled in hook
         }
     };
 
-    const stopTimer = async (taskId: string) => {
-        const timer = activeTimers[taskId];
-        if (timer?.sessionId) {
-            try {
-                await timerSessionsApi.stopTimerSession(timer.sessionId);
-                // Refresh tasks to get updated time_spent
-                await useTaskStore.getState().fetchTasks(user!.id, formatDate(currentDate));
-            } catch (error) {
-                console.error('Failed to stop timer session:', error);
-            }
+    const handleStopTimer = async (taskId: string) => {
+        try {
+            await stopTimer(taskId);
+            // Refresh tasks to get updated time_spent
+            await useTaskStore.getState().fetchTasks(user!.id, formatDate(currentDate));
+        } catch (error) {
+            // Error already handled in hook
         }
-        setActiveTimers((prev) => {
-            const updated = { ...prev };
-            delete updated[taskId];
-            return updated;
-        });
-        toast.success('Timer stopped');
+    };
+
+    const handleToggleTimer = async (taskId: string) => {
+        try {
+            await toggleTimer(taskId);
+        } catch (error) {
+            // Error already handled in hook
+        }
     };
 
     const handleLinkToLongerTask = async (taskId: string, longerTaskId: string | null) => {
@@ -419,13 +387,13 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <button
-                                                onClick={() => stopTimer(task.id)}
+                                                onClick={() => handleStopTimer(task.id)}
                                                 className="size-8 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"
                                             >
                                                 <span className="material-symbols-outlined text-white text-[18px]">stop</span>
                                             </button>
                                             <button
-                                                onClick={() => toggleTimer(task.id)}
+                                                onClick={() => handleToggleTimer(task.id)}
                                                 className="size-10 bg-primary rounded-lg flex items-center justify-center hover:brightness-110 transition-all shadow-glow"
                                             >
                                                 <span className="material-symbols-outlined text-black text-[20px]">
@@ -547,7 +515,7 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                 }}
                 onStart={(minutes) => {
                     if (pendingTimerTaskId) {
-                        toggleTimer(pendingTimerTaskId, minutes);
+                        handleStartTimer(pendingTimerTaskId, minutes);
                         setPendingTimerTaskId(null);
                     }
                 }}

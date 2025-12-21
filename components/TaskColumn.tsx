@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Task, FilterType } from '../types';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useTaskStore } from '../src/stores/taskStore';
@@ -11,7 +11,7 @@ import AddLongerTaskModal from '../src/components/AddLongerTaskModal';
 import toast from 'react-hot-toast';
 import { formatDate, formatDeadlineTime } from '../src/utils/dateUtils';
 import { formatTimeSpent, formatTimeDifference, isOverEstimate } from '../src/utils/timeUtils';
-import * as timerSessionsApi from '../src/api/timerSessions';
+import { useTimerSync } from '../src/hooks/useTimerSync';
 
 interface TaskColumnProps {
     currentDate: Date;
@@ -41,7 +41,6 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
         isOpen: false,
         task: null,
     });
-    const [activeTimers, setActiveTimers] = useState<Record<string, { seconds: number; isRunning: boolean; sessionId?: string }>>({});
     const [timerDialog, setTimerDialog] = useState<{ isOpen: boolean; taskId: string | null }>({
         isOpen: false,
         taskId: null,
@@ -50,28 +49,10 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
     const [isLongerTaskModalOpen, setIsLongerTaskModalOpen] = useState(false);
     const [pendingLinkTaskId, setPendingLinkTaskId] = useState<string | null>(null);
 
-    // Timer countdown logic
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setActiveTimers((prev) => {
-                const updated = { ...prev };
-                Object.keys(updated).forEach((taskId) => {
-                    if (updated[taskId].isRunning && updated[taskId].seconds > 0) {
-                        updated[taskId].seconds -= 1;
+    // Use timer sync hook for real-time synchronization
+    const { activeTimers, startTimer, stopTimer, toggleTimer } = useTimerSync(user!.id, currentDate);
 
-                        // Notify when timer completes
-                        if (updated[taskId].seconds === 0) {
-                            toast.success('Timer completed! 🎉', { duration: 5000 });
-                            updated[taskId].isRunning = false;
-                        }
-                    }
-                });
-                return updated;
-            });
-        }, 1000);
-
-        return () => clearInterval(interval);
-    }, []);
+    // Timer countdown is now handled by useTimerSync hook
 
     const handleProgressChange = async (id: string, newProgress: number) => {
         const task = tasks.find(t => t.id === id);
@@ -144,62 +125,41 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
         }
     };
 
-    const handleStartTimer = (taskId: string) => {
-        setTimerDialog({ isOpen: true, taskId });
-    };
-
-    const confirmStartTimer = async () => {
+    const handleStartTimer = async () => {
         if (!timerDialog.taskId) return;
 
-        const totalSeconds = (timerDuration.hours * 3600) + (timerDuration.minutes * 60);
+        const totalMinutes = (timerDuration.hours * 60) + timerDuration.minutes;
 
-        if (totalSeconds === 0) {
+        if (totalMinutes === 0) {
             toast.error('Please set a timer duration');
             return;
         }
 
         try {
-            // Start timer session in database
-            const session = await timerSessionsApi.startTimerSession(timerDialog.taskId, user!.id);
-
-            setActiveTimers((prev) => ({
-                ...prev,
-                [timerDialog.taskId!]: { seconds: totalSeconds, isRunning: true, sessionId: session.id },
-            }));
-
+            await startTimer(timerDialog.taskId, totalMinutes);
             setTimerDialog({ isOpen: false, taskId: null });
             setTimerDuration({ hours: 0, minutes: 25 });
-            toast.success('Timer started!');
         } catch (error) {
-            console.error('Failed to start timer session:', error);
-            toast.error('Failed to start timer');
+            // Error already handled in hook
         }
     };
 
-    const toggleTimer = (taskId: string) => {
-        setActiveTimers((prev) => ({
-            ...prev,
-            [taskId]: { ...prev[taskId], isRunning: !prev[taskId].isRunning },
-        }));
+    const handleToggleTimer = async (taskId: string) => {
+        try {
+            await toggleTimer(taskId);
+        } catch (error) {
+            // Error already handled in hook
+        }
     };
 
-    const stopTimer = async (taskId: string) => {
-        const timer = activeTimers[taskId];
-        if (timer?.sessionId) {
-            try {
-                await timerSessionsApi.stopTimerSession(timer.sessionId);
-                // Refresh tasks to get updated time_spent
-                await useTaskStore.getState().fetchTasks(user!.id, formatDate(currentDate));
-            } catch (error) {
-                console.error('Failed to stop timer session:', error);
-            }
+    const handleStopTimer = async (taskId: string) => {
+        try {
+            await stopTimer(taskId);
+            // Refresh tasks to get updated time_spent
+            await useTaskStore.getState().fetchTasks(user!.id, formatDate(currentDate));
+        } catch (error) {
+            // Error already handled in hook
         }
-        setActiveTimers((prev) => {
-            const updated = { ...prev };
-            delete updated[taskId];
-            return updated;
-        });
-        toast.success('Timer stopped');
     };
 
     const formatTime = (seconds: number) => {
@@ -332,7 +292,7 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                                 </div>
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={() => handleStartTimer(task.id)}
+                                        onClick={() => setTimerDialog({ isOpen: true, taskId: task.id })}
                                         className="text-white/40 hover:text-primary transition-colors"
                                         title="Start timer"
                                     >
@@ -373,14 +333,14 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <button
-                                            onClick={() => stopTimer(task.id)}
+                                            onClick={() => handleStopTimer(task.id)}
                                             className="size-8 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"
                                             title="Stop timer"
                                         >
                                             <span className="material-symbols-outlined text-white text-[18px]">stop</span>
                                         </button>
                                         <button
-                                            onClick={() => toggleTimer(task.id)}
+                                            onClick={() => handleToggleTimer(task.id)}
                                             className="size-10 bg-primary rounded-lg flex items-center justify-center hover:brightness-110 transition-all shadow-glow"
                                             title={activeTimers[task.id].isRunning ? 'Pause' : 'Play'}
                                         >
@@ -626,7 +586,7 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                                 Cancel
                             </button>
                             <button
-                                onClick={confirmStartTimer}
+                                onClick={handleStartTimer}
                                 className="flex-1 py-3 bg-primary hover:brightness-110 rounded-xl text-black font-bold transition-all shadow-glow"
                             >
                                 Start Timer

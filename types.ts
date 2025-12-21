@@ -97,6 +97,9 @@ export interface TimerSession {
     ended_at: string | null;
     duration_seconds: number | null;
     is_active: boolean;
+    timer_duration_seconds?: number; // Initial timer duration for countdown
+    is_paused?: boolean; // Whether timer is currently paused
+    paused_at?: string | null; // Timestamp when timer was paused
     created_at: string;
     updated_at: string;
 }
