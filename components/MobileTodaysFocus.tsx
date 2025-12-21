@@ -11,6 +11,8 @@ import AddLongerTaskModal from '../src/components/AddLongerTaskModal';
 import TimerDurationModal from '../src/components/TimerDurationModal';
 import toast from 'react-hot-toast';
 import { formatDate, formatDeadlineTime, addDays } from '../src/utils/dateUtils';
+import { formatTimeSpent, formatTimeDifference, isOverEstimate } from '../src/utils/timeUtils';
+import * as timerSessionsApi from '../src/api/timerSessions';
 
 interface MobileTodaysFocusProps {
     currentDate: Date;
@@ -34,7 +36,7 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
     const [pendingLinkTaskId, setPendingLinkTaskId] = useState<string | null>(null);
     const [pendingTimerTaskId, setPendingTimerTaskId] = useState<string | null>(null);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
-    const [activeTimers, setActiveTimers] = useState<Record<string, { seconds: number; isRunning: boolean }>>({});
+    const [activeTimers, setActiveTimers] = useState<Record<string, { seconds: number; isRunning: boolean; sessionId?: string }>>({});
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [pushToLater, setPushToLater] = useState<{ isOpen: boolean; task: Task | null }>({
         isOpen: false,
@@ -127,38 +129,49 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
         }
     };
 
-    const toggleTimer = (taskId: string, customMinutes?: number) => {
-        setActiveTimers((prev) => {
-            if (prev[taskId]) {
-                return {
-                    ...prev,
-                    [taskId]: { ...prev[taskId], isRunning: !prev[taskId].isRunning },
-                };
-            } else {
-                // Initialize timer with custom minutes or estimated hours
-                const task = tasks.find((t) => t.id === taskId);
-                let initialSeconds: number;
+    const toggleTimer = async (taskId: string, customMinutes?: number) => {
+        const timer = activeTimers[taskId];
 
-                if (customMinutes !== undefined) {
-                    initialSeconds = customMinutes * 60;
-                } else {
-                    initialSeconds = task ? task.estimatedHours * 60 * 60 : 3600;
-                }
-
-                return {
+        if (!timer && customMinutes !== undefined) {
+            // Start new timer with database session
+            const totalSeconds = customMinutes * 60;
+            try {
+                const session = await timerSessionsApi.startTimerSession(taskId, user!.id);
+                setActiveTimers((prev) => ({
                     ...prev,
-                    [taskId]: { seconds: initialSeconds, isRunning: true },
-                };
+                    [taskId]: { seconds: totalSeconds, isRunning: true, sessionId: session.id },
+                }));
+                toast.success('Timer started!');
+            } catch (error) {
+                console.error('Failed to start timer session:', error);
+                toast.error('Failed to start timer');
             }
-        });
+        } else if (timer) {
+            // Toggle pause/play
+            setActiveTimers((prev) => ({
+                ...prev,
+                [taskId]: { ...timer, isRunning: !timer.isRunning },
+            }));
+        }
     };
 
-    const stopTimer = (taskId: string) => {
+    const stopTimer = async (taskId: string) => {
+        const timer = activeTimers[taskId];
+        if (timer?.sessionId) {
+            try {
+                await timerSessionsApi.stopTimerSession(timer.sessionId);
+                // Refresh tasks to get updated time_spent
+                await useTaskStore.getState().fetchTasks(user!.id, formatDate(currentDate));
+            } catch (error) {
+                console.error('Failed to stop timer session:', error);
+            }
+        }
         setActiveTimers((prev) => {
             const updated = { ...prev };
             delete updated[taskId];
             return updated;
         });
+        toast.success('Timer stopped');
     };
 
     const handleLinkToLongerTask = async (taskId: string, longerTaskId: string | null) => {
@@ -295,6 +308,27 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                                                     {task.estimatedHours}h{task.deadline ? ` • Target: ${formatDeadlineTime(task.deadline)}` : ''}
                                                 </span>
                                             </div>
+                                            {task.time_spent !== undefined && task.time_spent > 0 && (
+                                                <div className="text-[10px] text-white/60 mt-1">
+                                                    {isCompleted ? (
+                                                        <>
+                                                            Actual: {formatTimeSpent(task.time_spent)}
+                                                            {task.time_spent !== task.estimatedHours && (
+                                                                <span className={isOverEstimate(task.time_spent, task.estimatedHours) ? ' text-orange-400' : ' text-primary'}>
+                                                                    {' '}({formatTimeDifference(task.time_spent, task.estimatedHours)})
+                                                                </span>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            Time spent: {formatTimeSpent(task.time_spent)}
+                                                            {task.time_spent > task.estimatedHours && (
+                                                                <span className="text-orange-400"> (over)</span>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">

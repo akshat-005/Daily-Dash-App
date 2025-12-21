@@ -16,6 +16,8 @@ export interface Task {
     is_longer_task?: boolean;
     long_task_id?: string; // Link to parent longer task
     description?: string;
+    // Time tracking
+    time_spent?: number; // Total time spent in hours (decimal)
 }
 
 export interface LongerTask {
@@ -83,6 +85,18 @@ export interface Category {
     user_id: string;
     name: string;
     color: CategoryColor;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface TimerSession {
+    id: string;
+    task_id: string;
+    user_id: string;
+    started_at: string;
+    ended_at: string | null;
+    duration_seconds: number | null;
+    is_active: boolean;
     created_at: string;
     updated_at: string;
 }

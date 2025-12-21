@@ -28,6 +28,7 @@ export const fetchTasks = async (userId: string, date: string): Promise<Task[]> 
         created_at: task.created_at,
         updated_at: task.updated_at,
         long_task_id: task.long_task_id,
+        time_spent: task.time_spent,
     }));
 };
 
@@ -66,6 +67,7 @@ export const createTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated
         completed_at: data.completed_at,
         created_at: data.created_at,
         updated_at: data.updated_at,
+        time_spent: data.time_spent,
     };
 };
 
@@ -112,6 +114,7 @@ export const updateTask = async (id: string, updates: Partial<Task>): Promise<Ta
         completed_at: data.completed_at,
         created_at: data.created_at,
         updated_at: data.updated_at,
+        time_spent: data.time_spent,
     };
 };
 

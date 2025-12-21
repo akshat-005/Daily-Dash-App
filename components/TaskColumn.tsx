@@ -10,6 +10,8 @@ import PushToLaterDialog from '../src/components/PushToLaterDialog';
 import AddLongerTaskModal from '../src/components/AddLongerTaskModal';
 import toast from 'react-hot-toast';
 import { formatDate, formatDeadlineTime } from '../src/utils/dateUtils';
+import { formatTimeSpent, formatTimeDifference, isOverEstimate } from '../src/utils/timeUtils';
+import * as timerSessionsApi from '../src/api/timerSessions';
 
 interface TaskColumnProps {
     currentDate: Date;
@@ -39,7 +41,7 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
         isOpen: false,
         task: null,
     });
-    const [activeTimers, setActiveTimers] = useState<Record<string, { seconds: number; isRunning: boolean }>>({});
+    const [activeTimers, setActiveTimers] = useState<Record<string, { seconds: number; isRunning: boolean; sessionId?: string }>>({});
     const [timerDialog, setTimerDialog] = useState<{ isOpen: boolean; taskId: string | null }>({
         isOpen: false,
         taskId: null,
@@ -146,7 +148,7 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
         setTimerDialog({ isOpen: true, taskId });
     };
 
-    const confirmStartTimer = () => {
+    const confirmStartTimer = async () => {
         if (!timerDialog.taskId) return;
 
         const totalSeconds = (timerDuration.hours * 3600) + (timerDuration.minutes * 60);
@@ -156,14 +158,22 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
             return;
         }
 
-        setActiveTimers((prev) => ({
-            ...prev,
-            [timerDialog.taskId!]: { seconds: totalSeconds, isRunning: true },
-        }));
+        try {
+            // Start timer session in database
+            const session = await timerSessionsApi.startTimerSession(timerDialog.taskId, user!.id);
 
-        setTimerDialog({ isOpen: false, taskId: null });
-        setTimerDuration({ hours: 0, minutes: 25 });
-        toast.success('Timer started!');
+            setActiveTimers((prev) => ({
+                ...prev,
+                [timerDialog.taskId!]: { seconds: totalSeconds, isRunning: true, sessionId: session.id },
+            }));
+
+            setTimerDialog({ isOpen: false, taskId: null });
+            setTimerDuration({ hours: 0, minutes: 25 });
+            toast.success('Timer started!');
+        } catch (error) {
+            console.error('Failed to start timer session:', error);
+            toast.error('Failed to start timer');
+        }
     };
 
     const toggleTimer = (taskId: string) => {
@@ -173,7 +183,17 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
         }));
     };
 
-    const stopTimer = (taskId: string) => {
+    const stopTimer = async (taskId: string) => {
+        const timer = activeTimers[taskId];
+        if (timer?.sessionId) {
+            try {
+                await timerSessionsApi.stopTimerSession(timer.sessionId);
+                // Refresh tasks to get updated time_spent
+                await useTaskStore.getState().fetchTasks(user!.id, formatDate(currentDate));
+            } catch (error) {
+                console.error('Failed to stop timer session:', error);
+            }
+        }
         setActiveTimers((prev) => {
             const updated = { ...prev };
             delete updated[taskId];
@@ -276,9 +296,25 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                                     </div>
                                 </div>
                                 <div className="flex items-center justify-between pt-2 border-t border-surface-border">
-                                    <div className="flex items-center gap-2 text-sm text-emerald-400">
-                                        <span className="material-symbols-outlined text-base">check_circle</span>
-                                        <span>Completed • {task.estimatedHours}h estimated</span>
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2 text-sm text-emerald-400">
+                                            <span className="material-symbols-outlined text-base">check_circle</span>
+                                            <span>Completed</span>
+                                        </div>
+                                        {task.time_spent !== undefined && task.time_spent > 0 ? (
+                                            <div className="text-xs text-white/70 ml-6">
+                                                Estimated: {formatTimeSpent(task.estimatedHours)} | Actual: {formatTimeSpent(task.time_spent)}
+                                                {task.time_spent !== task.estimatedHours && (
+                                                    <span className={isOverEstimate(task.time_spent, task.estimatedHours) ? ' text-orange-400' : ' text-primary'}>
+                                                        {' '}({formatTimeDifference(task.time_spent, task.estimatedHours)})
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="text-xs text-white/50 ml-6">
+                                                {task.estimatedHours}h estimated
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -446,9 +482,19 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                             </div>
 
                             <div className="flex items-center justify-between pt-3 border-t border-surface-border">
-                                <div className="flex items-center gap-2 text-sm text-[#9db9a8]">
-                                    <span className="material-symbols-outlined text-base">schedule</span>
-                                    <span>{task.estimatedHours}h estimated{task.deadline ? ` • Due ${formatDeadlineTime(task.deadline)}` : ''}</span>
+                                <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-2 text-sm text-[#9db9a8]">
+                                        <span className="material-symbols-outlined text-base">schedule</span>
+                                        <span>Estimated: {formatTimeSpent(task.estimatedHours)}{task.deadline ? ` • Due ${formatDeadlineTime(task.deadline)}` : ''}</span>
+                                    </div>
+                                    {task.time_spent !== undefined && task.time_spent > 0 && (
+                                        <div className="text-xs text-white/60 ml-6">
+                                            Time spent so far: {formatTimeSpent(task.time_spent)}
+                                            {task.time_spent > task.estimatedHours && (
+                                                <span className="text-orange-400"> (over estimate)</span>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <button
                                     onClick={() => handleToggleComplete(task.id, task.isCompleted)}
