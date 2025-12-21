@@ -78,4 +78,13 @@ export interface Streak {
     updated_at: string;
 }
 
+export interface Category {
+    id: string;
+    user_id: string;
+    name: string;
+    color: CategoryColor;
+    created_at: string;
+    updated_at: string;
+}
+
 export type CategoryColor = 'indigo' | 'primary' | 'emerald' | 'purple' | 'pink';

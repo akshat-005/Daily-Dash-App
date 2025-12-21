@@ -10,6 +10,7 @@ import LoadingSpinner from './src/components/LoadingSpinner';
 import MobileView from './components/MobileView';
 import { useTaskStore } from './src/stores/taskStore';
 import { useStatsStore } from './src/stores/statsStore';
+import { useCategoryStore } from './src/stores/categoryStore';
 import { formatDate, formatDisplayDate, addDays } from './src/utils/dateUtils';
 import { useMediaQuery } from './src/utils/useMediaQuery';
 
@@ -23,6 +24,7 @@ const DashboardContent: React.FC = () => {
   const fetchStreak = useStatsStore((state) => state.fetchStreak);
   const fetchDailyStats = useStatsStore((state) => state.fetchDailyStats);
   const fetchWeeklyMomentum = useStatsStore((state) => state.fetchWeeklyMomentum);
+  const fetchCategories = useCategoryStore((state) => state.fetchCategories);
 
   useEffect(() => {
     if (user) {
@@ -33,6 +35,7 @@ const DashboardContent: React.FC = () => {
       fetchStreak(user.id);
       fetchDailyStats(user.id, dateStr);
       fetchWeeklyMomentum(user.id);
+      fetchCategories(user.id);
 
       // Subscribe to real-time task updates
       const unsubscribe = subscribeToTasks(user.id, dateStr);

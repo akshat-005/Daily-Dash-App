@@ -3,8 +3,9 @@ import { format } from 'date-fns';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useTaskStore } from '../src/stores/taskStore';
 import { useStatsStore } from '../src/stores/statsStore';
+import { useCategoryStore } from '../src/stores/categoryStore';
 import MobileDateSelector from './MobileDateSelector';
-import MobileMomentumCard from './MobileMomentumCard';
+import MobileStatsCards from './MobileStatsCards';
 import MobileTodaysFocus from './MobileTodaysFocus';
 import MobileBottomNav from './MobileBottomNav';
 import Sidebar from './Sidebar';
@@ -67,6 +68,11 @@ const MobileView: React.FC<MobileViewProps> = ({ currentDate, onDateSelect }) =>
                         <button className="size-8 bg-[#1a2d23] rounded-full flex items-center justify-center">
                             <span className="material-symbols-outlined text-white text-[18px]">notifications</span>
                         </button>
+                        {/* Streak Display */}
+                        <div className="flex items-center gap-1 bg-[#1a2d23] rounded-full px-2.5 py-1 border border-[#2d4a38]">
+                            <span className="text-lg">🔥</span>
+                            <span className="text-white text-sm font-bold">{useStatsStore.getState().streak?.current_streak || 0}</span>
+                        </div>
                         <button
                             onClick={() => setShowProfileMenu(!showProfileMenu)}
                             className="size-8 bg-primary rounded-full flex items-center justify-center"
@@ -85,7 +91,7 @@ const MobileView: React.FC<MobileViewProps> = ({ currentDate, onDateSelect }) =>
                 {activeView === 'dashboard' && (
                     <>
                         <div className="py-4">
-                            <MobileMomentumCard currentDate={currentDate} />
+                            <MobileStatsCards currentDate={currentDate} />
                         </div>
                         <MobileTodaysFocus currentDate={currentDate} />
                     </>
@@ -159,9 +165,7 @@ const MobileView: React.FC<MobileViewProps> = ({ currentDate, onDateSelect }) =>
                 task={null}
                 currentDate={currentDate}
                 userId={user!.id}
-                existingCategories={Array.from(
-                    new Map(tasks.map((t) => [t.category, { name: t.category, color: t.categoryColor }])).values()
-                )}
+                existingCategories={useCategoryStore.getState().categories.map(c => ({ name: c.name, color: c.color }))}
                 onSave={handleSaveTask}
                 onClose={() => setIsTaskModalOpen(false)}
             />

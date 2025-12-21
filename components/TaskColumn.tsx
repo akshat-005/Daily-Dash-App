@@ -3,12 +3,13 @@ import { Task, FilterType } from '../types';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useTaskStore } from '../src/stores/taskStore';
 import { useLongerTaskStore } from '../src/stores/longerTaskStore';
+import { useCategoryStore } from '../src/stores/categoryStore';
 import TaskModal from '../src/components/TaskModal';
 import ConfirmDialog from '../src/components/ConfirmDialog';
 import PushToLaterDialog from '../src/components/PushToLaterDialog';
 import AddLongerTaskModal from '../src/components/AddLongerTaskModal';
 import toast from 'react-hot-toast';
-import { formatDate } from '../src/utils/dateUtils';
+import { formatDate, formatDeadlineTime } from '../src/utils/dateUtils';
 
 interface TaskColumnProps {
     currentDate: Date;
@@ -447,7 +448,7 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                             <div className="flex items-center justify-between pt-3 border-t border-surface-border">
                                 <div className="flex items-center gap-2 text-sm text-[#9db9a8]">
                                     <span className="material-symbols-outlined text-base">schedule</span>
-                                    <span>{task.estimatedHours}h estimated{task.deadline ? ` • Due ${task.deadline}` : ''}</span>
+                                    <span>{task.estimatedHours}h estimated{task.deadline ? ` • Due ${formatDeadlineTime(task.deadline)}` : ''}</span>
                                 </div>
                                 <button
                                     onClick={() => handleToggleComplete(task.id, task.isCompleted)}
@@ -473,9 +474,7 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                 task={editingTask}
                 currentDate={currentDate}
                 userId={user!.id}
-                existingCategories={Array.from(
-                    new Map(tasks.map(t => [t.category, { name: t.category, color: t.categoryColor }])).values()
-                )}
+                existingCategories={useCategoryStore.getState().categories.map(c => ({ name: c.name, color: c.color }))}
                 onSave={handleSaveTask}
                 onClose={() => setIsModalOpen(false)}
             />

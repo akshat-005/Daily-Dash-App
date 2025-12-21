@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Task, CategoryColor } from '../../types';
 import { formatDate } from '../utils/dateUtils';
+import { useCategoryStore } from '../stores/categoryStore';
 
 interface TaskModalProps {
     isOpen: boolean;
@@ -28,7 +29,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
     const [selectedCategory, setSelectedCategory] = useState('');
     const [newCategoryName, setNewCategoryName] = useState('');
     const [categoryColor, setCategoryColor] = useState<CategoryColor>('primary');
-    const [estimatedHours, setEstimatedHours] = useState('2');
+    const [estimatedHours, setEstimatedHours] = useState(2);
+    const [estimatedMinutes, setEstimatedMinutes] = useState(0);
 
     // Deadline time state
     const [deadlineHour, setDeadlineHour] = useState('5');
@@ -49,7 +51,12 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 setNewCategoryName(task.category);
             }
             setCategoryColor(task.categoryColor);
-            setEstimatedHours(task.estimatedHours.toString());
+            // Convert decimal hours to hours and minutes
+            const totalHours = task.estimatedHours;
+            const hours = Math.floor(totalHours);
+            const minutes = Math.round((totalHours - hours) * 60);
+            setEstimatedHours(hours);
+            setEstimatedMinutes(minutes);
 
             if (task.deadline) {
                 setHasDeadline(true);
@@ -71,7 +78,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 setCategoryMode('new');
                 setNewCategoryName('');
             }
-            setEstimatedHours('2');
+            setEstimatedHours(2);
+            setEstimatedMinutes(0);
             setHasDeadline(false);
             setDeadlineHour('5');
             setDeadlineMinute('00');
@@ -93,7 +101,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         const categoryName = categoryMode === 'new' ? newCategoryName.trim() : selectedCategory;
@@ -101,6 +109,16 @@ const TaskModal: React.FC<TaskModalProps> = ({
         if (!categoryName) {
             alert('Please enter a category name');
             return;
+        }
+
+        // If new category, save it to the database
+        if (categoryMode === 'new') {
+            try {
+                await useCategoryStore.getState().ensureCategoryExists(userId, categoryName, categoryColor);
+            } catch (error) {
+                console.error('Failed to save category:', error);
+                // Continue anyway - the task will still be created
+            }
         }
 
         const deadline = hasDeadline
@@ -113,7 +131,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             category: categoryName,
             categoryColor,
             progress: task?.progress || 0,
-            estimatedHours: parseFloat(estimatedHours),
+            estimatedHours: estimatedHours + (estimatedMinutes / 60),
             deadline,
             scheduled_date: formatDate(currentDate),
             isCompleted: task?.isCompleted || false,
@@ -224,19 +242,33 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
                     <div>
                         <label className="block text-sm font-medium text-[#9db9a8] mb-2">
-                            Estimated Hours
+                            Estimated Duration
                         </label>
-                        <select
-                            value={estimatedHours}
-                            onChange={(e) => setEstimatedHours(e.target.value)}
-                            className="w-full bg-[#111814] border border-surface-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
-                        >
-                            {estimatedHoursOptions.map((h) => (
-                                <option key={h} value={h}>
-                                    {h} {parseFloat(h) === 1 ? 'hour' : 'hours'}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-white/60 text-xs mb-1">Hours</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="24"
+                                    value={estimatedHours}
+                                    onChange={(e) => setEstimatedHours(parseInt(e.target.value) || 0)}
+                                    className="w-full bg-[#111814] border border-surface-border rounded-xl px-4 py-3 text-white text-center focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-white/60 text-xs mb-1">Minutes</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="59"
+                                    step="5"
+                                    value={estimatedMinutes}
+                                    onChange={(e) => setEstimatedMinutes(parseInt(e.target.value) || 0)}
+                                    className="w-full bg-[#111814] border border-surface-border rounded-xl px-4 py-3 text-white text-center focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <div>

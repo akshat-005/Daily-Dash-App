@@ -10,9 +10,25 @@ export const formatDisplayDate = (date: Date | string): string => {
     return format(d, 'EEEE, d MMMM yyyy');
 };
 
-export const formatTime = (time: string): string => {
-    // Assuming time is in HH:MM format
-    return time;
+export const formatDeadlineTime = (time: string): string => {
+    // Handle formats like "17:00:00" or "17:00" or "5:00 PM"
+    if (!time) return '';
+
+    // If already in 12-hour format, return as is
+    if (time.toLowerCase().includes('am') || time.toLowerCase().includes('pm')) {
+        return time;
+    }
+
+    // Parse 24-hour format
+    const parts = time.split(':');
+    let hours = parseInt(parts[0]);
+    const minutes = parts[1] || '00';
+
+    // Convert to 12-hour format
+    const period = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12; // Convert 0 to 12 for midnight
+
+    return `${hours}:${minutes} ${period}`;
 };
 
 export const checkIsToday = (date: Date | string): boolean => {

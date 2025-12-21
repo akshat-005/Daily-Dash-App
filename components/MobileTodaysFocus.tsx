@@ -3,13 +3,14 @@ import { Task } from '../types';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useTaskStore } from '../src/stores/taskStore';
 import { useLongerTaskStore } from '../src/stores/longerTaskStore';
+import { useCategoryStore } from '../src/stores/categoryStore';
 import TaskModal from '../src/components/TaskModal';
 import PushToLaterDialog from '../src/components/PushToLaterDialog';
 import ConfirmDialog from '../src/components/ConfirmDialog';
 import AddLongerTaskModal from '../src/components/AddLongerTaskModal';
 import TimerDurationModal from '../src/components/TimerDurationModal';
 import toast from 'react-hot-toast';
-import { formatDate, addDays } from '../src/utils/dateUtils';
+import { formatDate, formatDeadlineTime, addDays } from '../src/utils/dateUtils';
 
 interface MobileTodaysFocusProps {
     currentDate: Date;
@@ -18,6 +19,8 @@ interface MobileTodaysFocusProps {
 const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) => {
     const { user } = useAuth();
     const tasks = useTaskStore((state) => state.tasks);
+    const filter = useTaskStore((state) => state.filter);
+    const setFilter = useTaskStore((state) => state.setFilter);
     const toggleComplete = useTaskStore((state) => state.toggleComplete);
     const updateTask = useTaskStore((state) => state.updateTask);
     const updateProgress = useTaskStore((state) => state.updateProgress);
@@ -226,19 +229,44 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
         return map[color] || 'bg-gray-500';
     };
 
+    // Dynamically get unique categories from tasks
+    const uniqueCategories = ['All Tasks', ...Array.from(new Set(tasks.map(task => task.category)))];
+
+    // Filter tasks based on selected filter
+    const filteredTasks = tasks.filter((task) => {
+        if (filter === 'All Tasks') return true;
+        return task.category === filter;
+    });
+
     return (
         <div className="px-4 py-3">
+            {/* Filter Tabs */}
+            <div className="flex gap-2 mb-3 overflow-x-auto pb-2 scrollbar-hide">
+                {uniqueCategories.map(f => (
+                    <button
+                        key={f}
+                        onClick={() => setFilter(f as any)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filter === f
+                            ? 'bg-primary text-[#111814]'
+                            : 'bg-[#1a2d23] border border-[#2d4a38] text-white font-medium hover:bg-[#2d4a38]'
+                            }`}
+                    >
+                        {f}
+                    </button>
+                ))}
+            </div>
+
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-white text-lg font-bold">Today's Focus</h2>
             </div>
 
             <div className="flex flex-col gap-3">
-                {tasks.length === 0 ? (
+                {filteredTasks.length === 0 ? (
                     <div className="text-center py-8 text-white/40">
                         <p>No tasks for today</p>
                     </div>
                 ) : (
-                    tasks.map((task) => {
+                    filteredTasks.map((task) => {
                         const hasTimer = activeTimers[task.id];
                         const isCompleted = task.isCompleted;
                         const isMenuOpen = openMenuId === task.id;
@@ -256,12 +284,17 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                                             </span>
                                         </div>
                                         <div className="flex-1">
-                                            <h3 className={`text - white font - bold text - base ${isCompleted ? 'line-through' : ''} `}>
+                                            <h3 className={`text-white font-bold text-base ${isCompleted ? 'line-through' : ''}`}>
                                                 {task.title}
                                             </h3>
-                                            <p className="text-white/50 text-xs mt-0.5">
-                                                {task.deadline ? `Target: ${task.deadline} ` : `${task.estimatedHours}h estimated`}
-                                            </p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${getColorClasses(task.categoryColor)}`}>
+                                                    {task.category}
+                                                </span>
+                                                <span className="text-white/50 text-xs">
+                                                    {task.estimatedHours}h{task.deadline ? ` • Target: ${formatDeadlineTime(task.deadline)}` : ''}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -309,8 +342,8 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                                         <button
                                             onClick={() => handleToggleComplete(task.id, task.isCompleted)}
                                             className={`size-8 rounded-full flex items-center justify-center transition-all ${isCompleted
-                                                    ? 'bg-primary text-black'
-                                                    : 'border-2 border-white/30 text-transparent hover:border-primary'
+                                                ? 'bg-primary text-black'
+                                                : 'border-2 border-white/30 text-transparent hover:border-primary'
                                                 }`}
                                         >
                                             {isCompleted && <span className="material-symbols-outlined text-[18px] font-bold">check</span>}
@@ -434,9 +467,7 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                 task={editingTask}
                 currentDate={currentDate}
                 userId={user!.id}
-                existingCategories={Array.from(
-                    new Map(tasks.map((t) => [t.category, { name: t.category, color: t.categoryColor }])).values()
-                )}
+                existingCategories={useCategoryStore.getState().categories.map(c => ({ name: c.name, color: c.color }))}
                 onSave={handleSaveTask}
                 onClose={() => {
                     setIsModalOpen(false);
