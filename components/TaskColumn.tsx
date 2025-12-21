@@ -324,12 +324,25 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
 
                             {/* Timer Display */}
                             {activeTimers[task.id] && (
-                                <div className="mb-3 bg-[#111814] border border-surface-border rounded-xl p-3 flex items-center justify-between">
+                                <div className={`mb-3 border rounded-xl p-3 flex items-center justify-between ${activeTimers[task.id].isStopwatch
+                                        ? 'bg-emerald-950/30 border-emerald-500/30'
+                                        : 'bg-[#111814] border-surface-border'
+                                    }`}>
                                     <div className="flex items-center gap-3">
-                                        <span className="material-symbols-outlined text-primary text-[24px]">timer</span>
-                                        <span className="text-white text-2xl font-mono font-bold tracking-wider">
-                                            {formatTime(activeTimers[task.id].seconds)}
+                                        <span className={`material-symbols-outlined text-[24px] ${activeTimers[task.id].isStopwatch ? 'text-emerald-400' : 'text-primary'
+                                            }`}>
+                                            {activeTimers[task.id].isStopwatch ? 'counter_1' : 'timer'}
                                         </span>
+                                        <div className="flex flex-col">
+                                            <span className={`text-2xl font-mono font-bold tracking-wider ${activeTimers[task.id].isStopwatch ? 'text-emerald-400' : 'text-white'
+                                                }`}>
+                                                {activeTimers[task.id].isStopwatch && '+'}
+                                                {formatTime(activeTimers[task.id].seconds)}
+                                            </span>
+                                            {activeTimers[task.id].isStopwatch && (
+                                                <span className="text-xs text-emerald-400/70 mt-0.5">Stopwatch mode</span>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <button
@@ -341,7 +354,8 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                                         </button>
                                         <button
                                             onClick={() => handleToggleTimer(task.id)}
-                                            className="size-10 bg-primary rounded-lg flex items-center justify-center hover:brightness-110 transition-all shadow-glow"
+                                            className={`size-10 rounded-lg flex items-center justify-center hover:brightness-110 transition-all shadow-glow ${activeTimers[task.id].isStopwatch ? 'bg-emerald-500' : 'bg-primary'
+                                                }`}
                                             title={activeTimers[task.id].isRunning ? 'Pause' : 'Play'}
                                         >
                                             <span className="material-symbols-outlined text-black text-[20px]">

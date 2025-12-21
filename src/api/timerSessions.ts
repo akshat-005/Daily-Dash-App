@@ -36,9 +36,22 @@ export const stopTimerSession = async (sessionId: string): Promise<TimerSession>
     if (fetchError) throw fetchError;
 
     // Calculate duration in seconds
-    const startTime = new Date(session.started_at).getTime();
-    const endTime = new Date(endedAt).getTime();
-    const durationSeconds = Math.floor((endTime - startTime) / 1000);
+    let durationSeconds: number;
+
+    if (session.is_stopwatch && session.stopwatch_started_at) {
+        // If in stopwatch mode, add stopwatch time to the existing duration
+        const stopwatchStartTime = new Date(session.stopwatch_started_at).getTime();
+        const stopwatchEndTime = new Date(endedAt).getTime();
+        const stopwatchSeconds = Math.floor((stopwatchEndTime - stopwatchStartTime) / 1000);
+
+        // Total = timer duration + stopwatch duration
+        durationSeconds = (session.duration_seconds || 0) + stopwatchSeconds;
+    } else {
+        // Normal timer/stopwatch - calculate from start to end
+        const startTime = new Date(session.started_at).getTime();
+        const endTime = new Date(endedAt).getTime();
+        durationSeconds = Math.floor((endTime - startTime) / 1000);
+    }
 
     // Update the session
     const { data, error } = await supabase
@@ -58,6 +71,60 @@ export const stopTimerSession = async (sessionId: string): Promise<TimerSession>
     // Update task's time_spent
     await updateTaskTimeSpent(session.task_id);
 
+    return data;
+};
+
+// Complete a timer session when countdown reaches zero
+export const completeTimerSession = async (sessionId: string): Promise<TimerSession> => {
+    const completedAt = new Date().toISOString();
+
+    // First, get the session to calculate duration
+    const { data: session, error: fetchError } = await supabase
+        .from('timer_sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single();
+
+    if (fetchError) throw fetchError;
+
+    // For a completed timer, duration should be the full timer_duration_seconds
+    const durationSeconds = session.timer_duration_seconds || 0;
+
+    // Update the session - mark as completed but keep is_active true for stopwatch
+    const { data, error } = await supabase
+        .from('timer_sessions')
+        .update({
+            duration_seconds: durationSeconds,
+            updated_at: completedAt,
+        })
+        .eq('id', sessionId)
+        .select()
+        .single();
+
+    if (error) throw error;
+
+    // Update task's time_spent with the timer duration
+    await updateTaskTimeSpent(session.task_id);
+
+    return data;
+};
+
+// Convert a completed timer to stopwatch mode
+export const convertToStopwatch = async (sessionId: string): Promise<TimerSession> => {
+    const now = new Date().toISOString();
+
+    const { data, error } = await supabase
+        .from('timer_sessions')
+        .update({
+            is_stopwatch: true,
+            stopwatch_started_at: now,
+            updated_at: now,
+        })
+        .eq('id', sessionId)
+        .select()
+        .single();
+
+    if (error) throw error;
     return data;
 };
 
@@ -130,11 +197,19 @@ export const pauseTimerSession = async (sessionId: string, isPaused: boolean): P
         // Pausing: record when we paused
         updateData.paused_at = new Date().toISOString();
     } else {
-        // Resuming: adjust started_at to account for paused time
+        // Resuming: adjust time to account for paused duration
         if (currentSession.paused_at) {
             const pauseDuration = Date.now() - new Date(currentSession.paused_at).getTime();
-            const newStartedAt = new Date(new Date(currentSession.started_at).getTime() + pauseDuration);
-            updateData.started_at = newStartedAt.toISOString();
+
+            if (currentSession.is_stopwatch && currentSession.stopwatch_started_at) {
+                // For stopwatch mode, adjust stopwatch_started_at
+                const newStopwatchStartedAt = new Date(new Date(currentSession.stopwatch_started_at).getTime() + pauseDuration);
+                updateData.stopwatch_started_at = newStopwatchStartedAt.toISOString();
+            } else {
+                // For timer mode, adjust started_at
+                const newStartedAt = new Date(new Date(currentSession.started_at).getTime() + pauseDuration);
+                updateData.started_at = newStartedAt.toISOString();
+            }
         }
         updateData.paused_at = null;
     }
@@ -187,3 +262,24 @@ export const calculateRemainingSeconds = (session: TimerSession): number => {
     return Math.max(0, remaining); // Don't go negative
 };
 
+// Calculate elapsed seconds for stopwatch mode
+export const calculateStopwatchSeconds = (session: TimerSession): number => {
+    if (!session.is_stopwatch || !session.stopwatch_started_at) return 0;
+
+    const now = new Date().getTime();
+    const stopwatchStartTime = new Date(session.stopwatch_started_at).getTime();
+
+    // Calculate elapsed time
+    let elapsedSeconds: number;
+
+    if (session.is_paused && session.paused_at) {
+        // If paused, calculate elapsed time up to pause point
+        const pauseTime = new Date(session.paused_at).getTime();
+        elapsedSeconds = Math.floor((pauseTime - stopwatchStartTime) / 1000);
+    } else {
+        // If running, calculate elapsed time up to now
+        elapsedSeconds = Math.floor((now - stopwatchStartTime) / 1000);
+    }
+
+    return elapsedSeconds;
+};

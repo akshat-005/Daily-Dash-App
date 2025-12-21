@@ -8,6 +8,7 @@ interface TimerState {
     seconds: number;
     isRunning: boolean;
     sessionId: string;
+    isStopwatch: boolean; // Whether in stopwatch mode (counting up)
 }
 
 export const useTimerSync = (userId: string, currentDate: Date) => {
@@ -24,9 +25,15 @@ export const useTimerSync = (userId: string, currentDate: Date) => {
 
                 const sessionsMap: Record<string, TimerSession> = {};
                 sessions.forEach((session) => {
-                    const remainingSeconds = timerSessionsApi.calculateRemainingSeconds(session);
-                    if (remainingSeconds > 0) {
+                    // Include stopwatch sessions (is_stopwatch = true)
+                    if (session.is_stopwatch) {
                         sessionsMap[session.task_id] = session;
+                    } else {
+                        // For timer sessions, only include if they have remaining time
+                        const remainingSeconds = timerSessionsApi.calculateRemainingSeconds(session);
+                        if (remainingSeconds > 0) {
+                            sessionsMap[session.task_id] = session;
+                        }
                     }
                 });
 
@@ -68,26 +75,46 @@ export const useTimerSync = (userId: string, currentDate: Date) => {
 
     // Update tick every second to force recalculation of remaining time
     useEffect(() => {
-        const interval = setInterval(() => {
+        const interval = setInterval(async () => {
             setTick(prev => prev + 1);
 
             // Check if any timers have completed
             setActiveSessions(prev => {
                 const updated = { ...prev };
-                let hasChanges = false;
 
-                Object.keys(updated).forEach(taskId => {
+                // Check for completed timers
+                Object.keys(updated).forEach(async (taskId) => {
                     const session = updated[taskId];
+
+                    // Skip if already in stopwatch mode
+                    if (session.is_stopwatch) return;
+
                     const remaining = timerSessionsApi.calculateRemainingSeconds(session);
 
                     if (remaining === 0 && !session.is_paused) {
-                        toast.success('Timer completed! 🎉', { duration: 5000 });
-                        delete updated[taskId];
-                        hasChanges = true;
+                        // Timer completed! Save time and convert to stopwatch
+                        try {
+                            // Complete the timer session (saves time to database)
+                            await timerSessionsApi.completeTimerSession(session.id);
+
+                            // Convert to stopwatch mode
+                            const stopwatchSession = await timerSessionsApi.convertToStopwatch(session.id);
+
+                            // Update state with the stopwatch session
+                            setActiveSessions(current => ({
+                                ...current,
+                                [taskId]: stopwatchSession,
+                            }));
+
+                            toast.success('Timer completed! Stopwatch started 🎉', { duration: 5000 });
+                        } catch (error) {
+                            console.error('Failed to complete timer:', error);
+                            toast.error('Failed to complete timer');
+                        }
                     }
                 });
 
-                return hasChanges ? updated : prev;
+                return updated;
             });
         }, 1000);
 
@@ -100,21 +127,30 @@ export const useTimerSync = (userId: string, currentDate: Date) => {
         if (eventType === 'INSERT' || eventType === 'UPDATE') {
             const session = newRecord as TimerSession;
 
-            if (session.is_active && session.timer_duration_seconds) {
-                const remainingSeconds = timerSessionsApi.calculateRemainingSeconds(session);
-
-                if (remainingSeconds > 0) {
+            if (session.is_active) {
+                // Handle stopwatch mode
+                if (session.is_stopwatch) {
                     setActiveSessions((prev) => ({
                         ...prev,
                         [session.task_id]: session,
                     }));
-                } else {
-                    // Timer has completed, remove it
-                    setActiveSessions((prev) => {
-                        const updated = { ...prev };
-                        delete updated[session.task_id];
-                        return updated;
-                    });
+                } else if (session.timer_duration_seconds) {
+                    // Handle timer mode
+                    const remainingSeconds = timerSessionsApi.calculateRemainingSeconds(session);
+
+                    if (remainingSeconds > 0) {
+                        setActiveSessions((prev) => ({
+                            ...prev,
+                            [session.task_id]: session,
+                        }));
+                    } else {
+                        // Timer has completed, remove it (will be handled by local completion logic)
+                        setActiveSessions((prev) => {
+                            const updated = { ...prev };
+                            delete updated[session.task_id];
+                            return updated;
+                        });
+                    }
                 }
             } else if (!session.is_active) {
                 // Timer stopped, remove from active timers
@@ -138,14 +174,28 @@ export const useTimerSync = (userId: string, currentDate: Date) => {
     const activeTimers: Record<string, TimerState> = {};
     Object.keys(activeSessions).forEach(taskId => {
         const session = activeSessions[taskId];
-        const remainingSeconds = timerSessionsApi.calculateRemainingSeconds(session);
 
-        if (remainingSeconds > 0) {
+        if (session.is_stopwatch) {
+            // Stopwatch mode - count up from 0
+            const stopwatchSeconds = timerSessionsApi.calculateStopwatchSeconds(session);
             activeTimers[taskId] = {
-                seconds: remainingSeconds,
+                seconds: stopwatchSeconds,
                 isRunning: !session.is_paused,
                 sessionId: session.id,
+                isStopwatch: true,
             };
+        } else {
+            // Timer mode - count down
+            const remainingSeconds = timerSessionsApi.calculateRemainingSeconds(session);
+
+            if (remainingSeconds > 0) {
+                activeTimers[taskId] = {
+                    seconds: remainingSeconds,
+                    isRunning: !session.is_paused,
+                    sessionId: session.id,
+                    isStopwatch: false,
+                };
+            }
         }
     });
 
