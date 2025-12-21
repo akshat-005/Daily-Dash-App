@@ -10,9 +10,11 @@ const AuthPage: React.FC = () => {
             <div className="w-full max-w-md">
                 {/* Logo */}
                 <div className="flex items-center justify-center gap-3 mb-8">
-                    <div className="size-12 text-primary flex items-center justify-center">
-                        <span className="material-symbols-outlined text-[40px]">dashboard</span>
-                    </div>
+                    <img
+                        src="/logo-192.png"
+                        alt="DailyDash Logo"
+                        className="size-20 object-contain"
+                    />
                     <h1 className="text-white text-3xl font-bold tracking-tight">
                         Daily<span className="text-primary">Dash</span>
                     </h1>

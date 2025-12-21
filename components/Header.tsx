@@ -18,9 +18,11 @@ const Header: React.FC = () => {
   return (
     <header className="flex items-center justify-between border-b border-surface-border px-4 py-2.5 sticky top-0 z-50 bg-[#111814]/90 backdrop-blur-md">
       <div className="flex items-center gap-2">
-        <div className="size-7 text-primary flex items-center justify-center">
-          <span className="material-symbols-outlined text-[24px]">dashboard</span>
-        </div>
+        <img
+          src="/logo-192.png"
+          alt="DailyDash Logo"
+          className="size-10 object-contain"
+        />
         <h1 className="text-white text-lg font-bold tracking-tight">
           Daily<span className="text-primary">Dash</span>
         </h1>
