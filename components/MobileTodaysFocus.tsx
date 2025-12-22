@@ -29,6 +29,7 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
     const deleteTask = useTaskStore((state) => state.deleteTask);
     const longerTasks = useLongerTaskStore((state) => state.longerTasks);
     const createLongerTask = useLongerTaskStore((state) => state.createLongerTask);
+    const categories = useCategoryStore((state) => state.categories);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isLongerTaskModalOpen, setIsLongerTaskModalOpen] = useState(false);
@@ -469,7 +470,7 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                 task={editingTask}
                 currentDate={currentDate}
                 userId={user!.id}
-                existingCategories={useCategoryStore.getState().categories.map(c => ({ name: c.name, color: c.color }))}
+                existingCategories={categories.map(c => ({ name: c.name, color: c.color }))}
                 onSave={handleSaveTask}
                 onClose={() => {
                     setIsModalOpen(false);

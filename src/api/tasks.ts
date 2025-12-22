@@ -72,6 +72,7 @@ export const createTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated
 };
 
 export const updateTask = async (id: string, updates: Partial<Task>): Promise<Task> => {
+    console.log('🔧 updateTask called with:', { id, updates });
     const dbUpdates: any = {};
 
     if (updates.title !== undefined) dbUpdates.title = updates.title;
@@ -91,6 +92,8 @@ export const updateTask = async (id: string, updates: Partial<Task>): Promise<Ta
         }
     }
 
+    console.log('📤 Sending to database:', dbUpdates);
+
     const { data, error } = await supabase
         .from('tasks')
         .update(dbUpdates)
@@ -98,7 +101,12 @@ export const updateTask = async (id: string, updates: Partial<Task>): Promise<Ta
         .select()
         .single();
 
-    if (error) throw error;
+    if (error) {
+        console.error('❌ Database error:', error);
+        throw error;
+    }
+
+    console.log('✅ Database returned:', data);
 
     return {
         id: data.id,

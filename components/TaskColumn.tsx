@@ -30,6 +30,7 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
     const linkToLongerTask = useTaskStore((state) => state.linkToLongerTask);
 
     const { longerTasks, fetchLongerTasks, createLongerTask } = useLongerTaskStore();
+    const categories = useCategoryStore((state) => state.categories);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -325,8 +326,8 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                             {/* Timer Display */}
                             {activeTimers[task.id] && (
                                 <div className={`mb-3 border rounded-xl p-3 flex items-center justify-between ${activeTimers[task.id].isStopwatch
-                                        ? 'bg-emerald-950/30 border-emerald-500/30'
-                                        : 'bg-[#111814] border-surface-border'
+                                    ? 'bg-emerald-950/30 border-emerald-500/30'
+                                    : 'bg-[#111814] border-surface-border'
                                     }`}>
                                     <div className="flex items-center gap-3">
                                         <span className={`material-symbols-outlined text-[24px] ${activeTimers[task.id].isStopwatch ? 'text-emerald-400' : 'text-primary'
@@ -488,13 +489,12 @@ const TaskColumn: React.FC<TaskColumnProps> = ({ currentDate }) => {
                 })
             )}
 
-            {/* Task Modal */}
             <TaskModal
                 isOpen={isModalOpen}
                 task={editingTask}
                 currentDate={currentDate}
                 userId={user!.id}
-                existingCategories={useCategoryStore.getState().categories.map(c => ({ name: c.name, color: c.color }))}
+                existingCategories={categories.map(c => ({ name: c.name, color: c.color }))}
                 onSave={handleSaveTask}
                 onClose={() => setIsModalOpen(false)}
             />

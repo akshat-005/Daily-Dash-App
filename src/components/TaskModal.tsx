@@ -58,15 +58,35 @@ const TaskModal: React.FC<TaskModalProps> = ({
             setEstimatedHours(hours);
             setEstimatedMinutes(minutes);
 
+
             if (task.deadline) {
                 setHasDeadline(true);
-                const [time, period] = task.deadline.split(' ');
-                const [hour, minute] = time.split(':');
-                setDeadlineHour(hour);
-                setDeadlineMinute(minute);
+                const parts = task.deadline.split(' ');
+                const time = parts[0];
+                let period = parts[1]; // Could be 'AM', 'PM', or undefined
+                const [hourStr, minute] = time.split(':');
+                let hour = parseInt(hourStr);
+
+                // Convert 24-hour format to 12-hour format if no period specified
+                if (!period) {
+                    if (hour >= 12) {
+                        period = 'PM';
+                        if (hour > 12) hour = hour - 12;
+                    } else {
+                        period = 'AM';
+                        if (hour === 0) hour = 12;
+                    }
+                }
+
+                setDeadlineHour(hour.toString());
+                setDeadlineMinute(minute || '00');
                 setDeadlinePeriod(period as 'AM' | 'PM');
             } else {
                 setHasDeadline(false);
+                // Reset to defaults when no deadline
+                setDeadlineHour('5');
+                setDeadlineMinute('00');
+                setDeadlinePeriod('PM');
             }
         } else {
             setTitle('');
@@ -121,9 +141,13 @@ const TaskModal: React.FC<TaskModalProps> = ({
             }
         }
 
+
+        // Validate deadline format
         const deadline = hasDeadline
-            ? `${deadlineHour}:${deadlineMinute} ${deadlinePeriod}`
+            ? `${deadlineHour}:${deadlineMinute} ${deadlinePeriod || 'PM'}`
             : undefined;
+
+        console.log('⏰ Deadline validation:', { hasDeadline, deadlineHour, deadlineMinute, deadlinePeriod, result: deadline });
 
         const taskData: Omit<Task, 'id' | 'created_at' | 'updated_at'> = {
             user_id: userId,
@@ -133,10 +157,12 @@ const TaskModal: React.FC<TaskModalProps> = ({
             progress: task?.progress || 0,
             estimatedHours: estimatedHours + (estimatedMinutes / 60),
             deadline,
-            scheduled_date: formatDate(currentDate),
+            scheduled_date: task?.scheduled_date || formatDate(currentDate), // Preserve original date when editing
             isCompleted: task?.isCompleted || false,
             completed_at: task?.completed_at,
         };
+
+        console.log('📝 TaskModal submitting:', { task, taskData });
 
         onSave(taskData);
         onClose();

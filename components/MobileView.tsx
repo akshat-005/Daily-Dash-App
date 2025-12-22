@@ -27,6 +27,7 @@ const MobileView: React.FC<MobileViewProps> = ({ currentDate, onDateSelect }) =>
 
     const tasks = useTaskStore((state) => state.tasks);
     const createTask = useTaskStore((state) => state.createTask);
+    const categories = useCategoryStore((state) => state.categories);
     const { signOut } = useAuth();
 
     const handleAddTask = () => {
@@ -165,7 +166,7 @@ const MobileView: React.FC<MobileViewProps> = ({ currentDate, onDateSelect }) =>
                 task={null}
                 currentDate={currentDate}
                 userId={user!.id}
-                existingCategories={useCategoryStore.getState().categories.map(c => ({ name: c.name, color: c.color }))}
+                existingCategories={categories.map(c => ({ name: c.name, color: c.color }))}
                 onSave={handleSaveTask}
                 onClose={() => setIsTaskModalOpen(false)}
             />
