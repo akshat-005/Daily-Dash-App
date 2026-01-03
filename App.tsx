@@ -13,14 +13,21 @@ import { useStatsStore } from './src/stores/statsStore';
 import { useCategoryStore } from './src/stores/categoryStore';
 import { formatDate, formatDisplayDate, addDays } from './src/utils/dateUtils';
 import { useMediaQuery } from './src/utils/useMediaQuery';
+import { initializeDailyNotifications, updateDailyNotificationData, clearDailyNotifications } from './src/utils/dailyNotifications';
+import { requestNotificationPermission, subscribeToPush, getVapidPublicKey } from './src/utils/notifications';
+import { clearAllReminders } from './src/utils/deadlineReminder';
+import { savePushSubscription } from './src/api/pushSubscriptions';
 
 const DashboardContent: React.FC = () => {
   const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const isMobile = useMediaQuery('(max-width: 900px)');
 
+  const tasks = useTaskStore((state) => state.tasks);
   const fetchTasks = useTaskStore((state) => state.fetchTasks);
   const subscribeToTasks = useTaskStore((state) => state.subscribeToTasks);
+  const streak = useStatsStore((state) => state.streak);
+  const dailyStats = useStatsStore((state) => state.dailyStats);
   const fetchStreak = useStatsStore((state) => state.fetchStreak);
   const fetchDailyStats = useStatsStore((state) => state.fetchDailyStats);
   const fetchWeeklyMomentum = useStatsStore((state) => state.fetchWeeklyMomentum);
@@ -37,11 +44,58 @@ const DashboardContent: React.FC = () => {
       fetchWeeklyMomentum(user.id);
       fetchCategories(user.id);
 
+      // Request notification permission and subscribe to push
+      const setupPushNotifications = async () => {
+        const granted = await requestNotificationPermission();
+        if (granted && getVapidPublicKey()) {
+          // Subscribe to Web Push and save to database
+          const subscription = await subscribeToPush();
+          if (subscription) {
+            try {
+              await savePushSubscription(user.id, subscription);
+              console.log('[Push] Subscribed to push notifications');
+            } catch (error) {
+              console.error('[Push] Failed to save subscription:', error);
+            }
+          }
+        }
+      };
+      setupPushNotifications();
+
       // Subscribe to real-time task updates
       const unsubscribe = subscribeToTasks(user.id, dateStr);
-      return () => unsubscribe();
+
+      return () => {
+        unsubscribe();
+        // Clear daily notifications on unmount
+        clearDailyNotifications();
+        clearAllReminders();
+      };
     }
   }, [user, currentDate]);
+
+  // Initialize daily notifications when stats are available
+  useEffect(() => {
+    if (user && streak && dailyStats !== undefined) {
+      const today = formatDate(new Date());
+      const isToday = formatDate(currentDate) === today;
+
+      // Calculate if user has activity today
+      const hasActivityToday = tasks.some(t => t.isCompleted) || (dailyStats?.tasks_completed ?? 0) > 0;
+
+      const notificationData = {
+        currentStreak: streak?.current_streak ?? 0,
+        tasksCompleted: dailyStats?.tasks_completed ?? 0,
+        tasksTotal: dailyStats?.tasks_total ?? tasks.length,
+        dailyScore: dailyStats?.daily_score ?? 0,
+        hasActivityToday,
+      };
+
+      if (isToday) {
+        initializeDailyNotifications(notificationData);
+      }
+    }
+  }, [user, streak, dailyStats, tasks, currentDate]);
 
   const handlePreviousDay = () => {
     setCurrentDate((prev) => addDays(prev, -1));

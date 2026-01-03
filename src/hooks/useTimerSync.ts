@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { TimerSession } from '../../types';
 import * as timerSessionsApi from '../api/timerSessions';
 import toast from 'react-hot-toast';
+import { showServiceWorkerNotification, requestNotificationPermission, isNotificationEnabled } from '../utils/notifications';
 
 interface TimerState {
     seconds: number;
@@ -107,6 +108,19 @@ export const useTimerSync = (userId: string, currentDate: Date) => {
                             }));
 
                             toast.success('Timer completed! Stopwatch started 🎉', { duration: 5000 });
+
+                            // Show browser notification for timer completion
+                            if (isNotificationEnabled('timerComplete')) {
+                                const durationMinutes = Math.round((session.timer_duration_seconds || 0) / 60);
+                                showServiceWorkerNotification(
+                                    '⏰ Timer Complete!',
+                                    `Your ${durationMinutes} minute timer has finished`,
+                                    {
+                                        tag: `timer-complete-${session.id}`,
+                                        data: { taskId, type: 'timer' },
+                                    }
+                                );
+                            }
                         } catch (error) {
                             console.error('Failed to complete timer:', error);
                             toast.error('Failed to complete timer');
@@ -203,6 +217,9 @@ export const useTimerSync = (userId: string, currentDate: Date) => {
         const totalSeconds = durationMinutes * 60;
 
         try {
+            // Request notification permission on first timer start
+            await requestNotificationPermission();
+
             const session = await timerSessionsApi.startTimerSession(
                 taskId,
                 userId,

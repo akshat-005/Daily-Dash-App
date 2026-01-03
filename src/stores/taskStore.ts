@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Task, FilterType } from '../../types';
 import * as taskApi from '../api/tasks';
 import { supabase } from '../lib/supabase';
+import { scheduleAllDeadlineReminders, handleTaskUpdate, clearDeadlineReminder } from '../utils/deadlineReminder';
 
 interface TaskStore {
     tasks: Task[];
@@ -34,6 +35,9 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         try {
             const tasks = await taskApi.fetchTasks(userId, date);
             set({ tasks, loading: false });
+
+            // Schedule deadline reminders for all tasks with deadlines
+            scheduleAllDeadlineReminders(tasks);
         } catch (error: any) {
             set({ error: error.message, loading: false });
         }
@@ -47,6 +51,9 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                 tasks: [...state.tasks, newTask],
                 loading: false,
             }));
+
+            // Schedule deadline reminder for new task
+            handleTaskUpdate(newTask);
         } catch (error: any) {
             set({ error: error.message, loading: false });
         }
@@ -58,6 +65,9 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             set((state) => ({
                 tasks: state.tasks.map((t) => (t.id === id ? updatedTask : t)),
             }));
+
+            // Update deadline reminder
+            handleTaskUpdate(updatedTask);
         } catch (error: any) {
             set({ error: error.message });
         }
@@ -65,6 +75,9 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
     deleteTask: async (id) => {
         try {
+            // Clear any deadline reminder for this task
+            clearDeadlineReminder(id);
+
             await taskApi.deleteTask(id);
             set((state) => ({
                 tasks: state.tasks.filter((t) => t.id !== id),

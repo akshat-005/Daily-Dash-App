@@ -11,6 +11,20 @@
   <link rel="apple-touch-icon" href="/app-icon-ios.png" />
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#2bee79" />
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('[App] Service Worker registered:', registration.scope);
+          })
+          .catch((error) => {
+            console.error('[App] Service Worker registration failed:', error);
+          });
+      });
+    }
+  </script>
   <!-- Fonts -->
   <link href="https://fonts.googleapis.com" rel="preconnect" />
   <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
