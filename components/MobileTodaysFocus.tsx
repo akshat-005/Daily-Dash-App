@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Task, DifficultyRating, CreateRevisitInput } from '../types';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useTaskStore } from '../src/stores/taskStore';
@@ -58,6 +58,8 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
         taskId: null,
     });
     const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
+    const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set());
+    const taskRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
     // Fetch today's revisits
     useEffect(() => {
@@ -68,6 +70,42 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
 
     // Use timer sync hook for real-time synchronization
     const { activeTimers, startTimer, stopTimer, toggleTimer } = useTimerSync(user!.id, currentDate);
+
+    // Auto-expand tasks with active timers
+    useEffect(() => {
+        const newExpandedIds = new Set(expandedTaskIds);
+        let hasChanges = false;
+
+        Object.keys(activeTimers).forEach(taskId => {
+            if (!newExpandedIds.has(taskId)) {
+                newExpandedIds.add(taskId);
+                hasChanges = true;
+            }
+        });
+
+        if (hasChanges) {
+            setExpandedTaskIds(newExpandedIds);
+        }
+    }, [activeTimers]);
+
+    // Click outside to collapse
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            const clickedTaskId = Array.from(taskRefs.current.entries()).find(([_, ref]) =>
+                ref?.contains(event.target as Node)
+            )?.[0];
+
+            if (!clickedTaskId) {
+                // Clicked outside all tasks - collapse all except those with active timers
+                const newExpandedIds = new Set<string>();
+                Object.keys(activeTimers).forEach(taskId => newExpandedIds.add(taskId));
+                setExpandedTaskIds(newExpandedIds);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [activeTimers]);
 
     // Timer countdown is now handled by useTimerSync hook
 
@@ -239,6 +277,59 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
         return task.category === filter;
     });
 
+    // Toggle task expansion
+    const toggleTaskExpansion = (taskId: string) => {
+        const newExpandedIds = new Set(expandedTaskIds);
+        if (newExpandedIds.has(taskId)) {
+            // Don't collapse if timer is active
+            if (!activeTimers[taskId]) {
+                newExpandedIds.delete(taskId);
+            }
+        } else {
+            newExpandedIds.add(taskId);
+        }
+        setExpandedTaskIds(newExpandedIds);
+    };
+
+    // Circular Progress Component
+    const CircularProgress = ({ value, color }: { value: number, color: string }) => {
+        const getColor = (c: string) => {
+            if (c === 'primary') return '#4ade80';
+            if (c === 'indigo') return '#818cf8';
+            if (c === 'emerald') return '#22c55e';
+            if (c === 'purple') return '#c084fc';
+            if (c === 'pink') return '#f472b6';
+            return '#9ca3af';
+        };
+
+        return (
+            <div className="relative flex items-center justify-center size-12">
+                <svg className="transform -rotate-90 size-full" viewBox="0 0 36 36">
+                    <path
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        className="text-white/5"
+                    />
+                    <path
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke={getColor(color)}
+                        strokeWidth="4"
+                        strokeDasharray="100, 100"
+                        strokeDashoffset={100 - value}
+                        strokeLinecap="round"
+                        className="transition-all duration-500 ease-out"
+                    />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center font-bold text-white text-sm">
+                    {Math.round(value)}%
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="px-4 py-3">
             {/* Filter Tabs */}
@@ -257,65 +348,6 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                 ))}
             </div>
 
-            {/* Revisit Today Section */}
-            {todayRevisits.length > 0 && (
-                <div className="mb-6">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                            <span className="text-lg">📌</span>
-                            <span className="text-white font-bold">Revisit Today</span>
-                            <span className="text-white/50 text-sm">
-                                {todayRevisits.length} • {formatEstimatedTime(
-                                    todayRevisits.reduce((sum, r) => sum + r.estimated_time_min, 0)
-                                )}
-                            </span>
-                        </div>
-                        <button
-                            onClick={() => setIsQuickCaptureOpen(true)}
-                            className="text-primary text-xs font-medium hover:underline"
-                        >
-                            + Add
-                        </button>
-                    </div>
-                    <div className="space-y-2">
-                        {todayRevisits.slice(0, 3).map((revisit) => (
-                            <RevisitCard
-                                key={revisit.id}
-                                revisit={revisit}
-                                compact
-                                onComplete={async (id, difficulty) => {
-                                    try {
-                                        await completeRevisit(id, difficulty);
-                                        toast.success(
-                                            difficulty === 'easy'
-                                                ? '🎉 Great! See you in 2 weeks'
-                                                : difficulty === 'medium'
-                                                    ? '👍 Coming back in 1 week'
-                                                    : '💪 Let\'s try again in 2 days'
-                                        );
-                                    } catch {
-                                        toast.error('Failed to complete revisit');
-                                    }
-                                }}
-                                onSnooze={async (id, days) => {
-                                    try {
-                                        await snoozeRevisit(id, days);
-                                        toast.success(`⏰ Snoozed for ${days} day${days > 1 ? 's' : ''}`);
-                                    } catch {
-                                        toast.error('Failed to snooze revisit');
-                                    }
-                                }}
-                            />
-                        ))}
-                        {todayRevisits.length > 3 && (
-                            <p className="text-white/40 text-xs text-center py-1">
-                                +{todayRevisits.length - 3} more in Revisits tab
-                            </p>
-                        )}
-                    </div>
-                </div>
-            )}
-
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-white text-lg font-bold">Today's Focus</h2>
             </div>
@@ -330,209 +362,275 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                         const hasTimer = activeTimers[task.id];
                         const isCompleted = task.isCompleted;
                         const isMenuOpen = openMenuId === task.id;
+                        const isExpanded = expandedTaskIds.has(task.id);
 
                         return (
                             <div
                                 key={task.id}
-                                className={`bg-[#1a2d23] border border-[#2d4a38] rounded-2xl p-4 ${isCompleted ? 'opacity-70' : ''}`}
+                                ref={(el) => {
+                                    if (el) taskRefs.current.set(task.id, el);
+                                    else taskRefs.current.delete(task.id);
+                                }}
+                                onClick={() => !isExpanded && toggleTaskExpansion(task.id)}
+                                className={`bg-[#1a2d23] border border-[#2d4a38] rounded-2xl shadow-card transition-all duration-300 ${isCompleted ? 'opacity-70' : ''
+                                    } ${isExpanded
+                                        ? 'p-4 ring-1 ring-primary/30'
+                                        : 'p-3 active:scale-[0.98] cursor-pointer'
+                                    }`}
                             >
-                                <div className="flex items-start justify-between mb-3">
-                                    <div className="flex items-center gap-3 flex-1">
-                                        <div className={`size-10 rounded-full ${getIconBgColor(task.categoryColor)} flex items-center justify-center`}>
-                                            <span className="material-symbols-outlined text-white text-[20px]">
-                                                {task.category === 'Deep Work' ? 'psychology' : task.category === 'Health' ? 'favorite' : 'work'}
+                                {/* Header - Always Visible */}
+                                <div className={`flex ${isExpanded ? 'justify-between items-start' : 'items-center gap-3'}`}>
+
+                                    {/* Left: Progress Ring (Compact Only) */}
+                                    {!isExpanded && !isCompleted && (
+                                        <div className="shrink-0">
+                                            <CircularProgress value={task.progress} color={task.categoryColor} />
+                                        </div>
+                                    )}
+
+                                    {/* Center: Task Info */}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${getColorClasses(task.categoryColor)}`}>
+                                                {task.category}
                                             </span>
                                         </div>
-                                        <div className="flex-1">
-                                            <h3 className={`text-white font-bold text-base ${isCompleted ? 'line-through' : ''}`}>
-                                                {task.title}
-                                            </h3>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${getColorClasses(task.categoryColor)}`}>
-                                                    {task.category}
-                                                </span>
-                                                <span className="text-white/50 text-xs">
-                                                    {task.estimatedHours}h{task.deadline ? ` • Target: ${formatDeadlineTime(task.deadline)}` : ''}
-                                                </span>
-                                            </div>
-                                            {task.time_spent !== undefined && task.time_spent > 0 && (
-                                                <div className="text-[10px] text-white/60 mt-1">
-                                                    {isCompleted ? (
-                                                        <>
-                                                            Actual: {formatTimeSpent(task.time_spent)}
-                                                            {task.time_spent !== task.estimatedHours && (
-                                                                <span className={isOverEstimate(task.time_spent, task.estimatedHours) ? ' text-orange-400' : ' text-primary'}>
-                                                                    {' '}({formatTimeDifference(task.time_spent, task.estimatedHours)})
-                                                                </span>
-                                                            )}
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            Time spent: {formatTimeSpent(task.time_spent)}
-                                                            {task.time_spent > task.estimatedHours && (
-                                                                <span className="text-orange-400"> (over)</span>
-                                                            )}
-                                                        </>
-                                                    )}
-                                                </div>
+                                        <h3 className={`font-bold text-white ${isExpanded ? 'text-base' : 'text-sm'} ${isCompleted ? 'line-through' : ''} truncate`}>
+                                            {task.title}
+                                        </h3>
+                                        <div className="flex items-center gap-2 text-xs text-white/50 mt-0.5">
+                                            <span>{task.estimatedHours}h</span>
+                                            {task.deadline && (
+                                                <span>• Due {formatDeadlineTime(task.deadline)}</span>
                                             )}
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        {/* Menu Button */}
-                                        <div className="relative">
-                                            <button
-                                                onClick={() => setOpenMenuId(isMenuOpen ? null : task.id)}
-                                                className="size-8 rounded-full flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
-                                            >
-                                                <span className="material-symbols-outlined text-[20px]">more_vert</span>
-                                            </button>
 
-                                            {/* Dropdown Menu */}
-                                            {isMenuOpen && (
-                                                <div className="absolute right-0 top-10 bg-[#111814] border border-[#2d4a38] rounded-xl shadow-lg overflow-hidden z-10 min-w-[160px]">
-                                                    <button
-                                                        onClick={() => handleEditTask(task)}
-                                                        className="w-full px-4 py-2 text-left text-sm text-white hover:bg-[#1a2d23] transition-colors flex items-center gap-2"
-                                                    >
-                                                        <span className="material-symbols-outlined text-[18px]">edit</span>
-                                                        Edit Task
-                                                    </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            setPushToLater({ isOpen: true, task });
-                                                            setOpenMenuId(null);
-                                                        }}
-                                                        className="w-full px-4 py-2 text-left text-sm text-white hover:bg-[#1a2d23] transition-colors flex items-center gap-2"
-                                                    >
-                                                        <span className="material-symbols-outlined text-[18px]">schedule_send</span>
-                                                        Push to Later
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteTask(task.id)}
-                                                        className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2"
-                                                    >
-                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                        Delete Task
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Completion Toggle */}
+                                    {/* Right: Completion Toggle (Compact) or Menu (Expanded) */}
+                                    {!isExpanded ? (
                                         <button
-                                            onClick={() => handleToggleComplete(task.id, task.isCompleted)}
-                                            className={`size-8 rounded-full flex items-center justify-center transition-all ${isCompleted
-                                                ? 'bg-primary text-black'
-                                                : 'border-2 border-white/30 text-transparent hover:border-primary'
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleToggleComplete(task.id, task.isCompleted);
+                                            }}
+                                            className={`size-8 rounded-full flex items-center justify-center shrink-0 transition-all ${isCompleted
+                                                    ? 'bg-primary text-black'
+                                                    : 'border-2 border-white/30 text-transparent hover:border-primary'
                                                 }`}
                                         >
                                             {isCompleted && <span className="material-symbols-outlined text-[18px] font-bold">check</span>}
                                         </button>
-                                    </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <div className="relative">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setOpenMenuId(isMenuOpen ? null : task.id);
+                                                    }}
+                                                    className="size-8 rounded-full flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                                                >
+                                                    <span className="material-symbols-outlined text-[20px]">more_vert</span>
+                                                </button>
+
+                                                {isMenuOpen && (
+                                                    <div className="absolute right-0 top-10 bg-[#111814] border border-[#2d4a38] rounded-xl shadow-lg overflow-hidden z-10 min-w-[160px]">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleEditTask(task);
+                                                            }}
+                                                            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-[#1a2d23] transition-colors flex items-center gap-2"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                            Edit Task
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setPushToLater({ isOpen: true, task });
+                                                                setOpenMenuId(null);
+                                                            }}
+                                                            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-[#1a2d23] transition-colors flex items-center gap-2"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[18px]">schedule_send</span>
+                                                            Push to Later
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeleteTask(task.id);
+                                                            }}
+                                                            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                            Delete Task
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleToggleComplete(task.id, task.isCompleted);
+                                                }}
+                                                className={`size-8 rounded-full flex items-center justify-center transition-all ${isCompleted
+                                                        ? 'bg-primary text-black'
+                                                        : 'border-2 border-white/30 text-transparent hover:border-primary'
+                                                    }`}
+                                            >
+                                                {isCompleted && <span className="material-symbols-outlined text-[18px] font-bold">check</span>}
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
 
-                                {/* Progress Slider */}
-                                {!isCompleted && (
-                                    <div className="mb-3">
-                                        <div className="flex justify-between text-xs font-medium text-white/50 mb-1">
-                                            <span>Progress</span>
-                                            <span>{task.progress}%</span>
-                                        </div>
-                                        <div className="relative w-full h-2 bg-[#111814] rounded-full overflow-hidden mb-1">
-                                            <div
-                                                className={`absolute left-0 top-0 h-full rounded-full transition-all duration-300 ${getGradient(task.categoryColor)}`}
-                                                style={{ width: `${task.progress}%` }}
-                                            />
-                                        </div>
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max="100"
-                                            value={task.progress}
-                                            onChange={(e) => handleProgressChange(task.id, parseInt(e.target.value))}
-                                            className="w-full h-2 -mt-2 cursor-pointer appearance-none bg-transparent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-glow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-glow"
-                                        />
-                                    </div>
-                                )}
-
-                                {/* Timer Section */}
-                                {hasTimer && (
-                                    <div className="bg-[#111814] rounded-xl p-3 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-white text-2xl font-mono font-bold tracking-wider">
-                                                {formatTime(hasTimer.seconds)}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => handleStopTimer(task.id)}
-                                                className="size-8 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"
-                                            >
-                                                <span className="material-symbols-outlined text-white text-[18px]">stop</span>
-                                            </button>
-                                            <button
-                                                onClick={() => handleToggleTimer(task.id)}
-                                                className="size-10 bg-primary rounded-lg flex items-center justify-center hover:brightness-110 transition-all shadow-glow"
-                                            >
-                                                <span className="material-symbols-outlined text-black text-[20px]">
-                                                    {hasTimer.isRunning ? 'pause' : 'play_arrow'}
-                                                </span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Timer Toggle Button */}
-                                {!hasTimer && !isCompleted && (
-                                    <button
-                                        onClick={() => {
-                                            setPendingTimerTaskId(task.id);
-                                            setIsTimerModalOpen(true);
-                                        }}
-                                        className="w-full mt-2 py-2 bg-[#111814] border border-[#2d4a38] rounded-xl text-white/70 text-sm font-medium hover:text-primary hover:border-primary/50 transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]">timer</span>
-                                        Start Timer
-                                    </button>
-                                )}
-
-                                {/* Linking Section */}
-                                {!isCompleted && (
-                                    <div className="mt-3 pt-3 border-t border-surface-border">
-                                        {task.long_task_id ? (
-                                            <div className="flex items-center justify-between text-sm">
-                                                <span className="text-white/60 flex items-center gap-1">
-                                                    <span className="material-symbols-outlined text-[16px]">link</span>
-                                                    {longerTasks.find(lt => lt.id === task.long_task_id)?.title || 'Linked Task'}
-                                                </span>
-                                                <button
-                                                    onClick={() => handleLinkToLongerTask(task.id, null)}
-                                                    className="text-red-400 text-xs hover:text-red-300 transition-colors"
-                                                >
-                                                    Unlink
-                                                </button>
+                                {/* Expanded Content */}
+                                {isExpanded && (
+                                    <div className="mt-3 space-y-3 animate-fade-in">
+                                        {/* Time Spent Info */}
+                                        {task.time_spent !== undefined && task.time_spent > 0 && (
+                                            <div className="text-xs text-white/60">
+                                                {isCompleted ? (
+                                                    <>
+                                                        Actual: {formatTimeSpent(task.time_spent)}
+                                                        {task.time_spent !== task.estimatedHours && (
+                                                            <span className={isOverEstimate(task.time_spent, task.estimatedHours) ? ' text-orange-400' : ' text-primary'}>
+                                                                {' '}({formatTimeDifference(task.time_spent, task.estimatedHours)})
+                                                            </span>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        Time spent: {formatTimeSpent(task.time_spent)}
+                                                        {task.time_spent > task.estimatedHours && (
+                                                            <span className="text-orange-400"> (over)</span>
+                                                        )}
+                                                    </>
+                                                )}
                                             </div>
-                                        ) : (
-                                            <select
-                                                value=""
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    if (value === 'create-new') {
-                                                        setPendingLinkTaskId(task.id);
-                                                        setIsLongerTaskModalOpen(true);
-                                                    } else if (value) {
-                                                        handleLinkToLongerTask(task.id, value);
-                                                    }
+                                        )}
+
+                                        {/* Progress Slider */}
+                                        {!isCompleted && (
+                                            <div>
+                                                <div className="flex justify-between text-xs font-medium text-white/50 mb-1">
+                                                    <span>Progress</span>
+                                                    <span>{task.progress}%</span>
+                                                </div>
+                                                <div className="relative w-full h-2 bg-[#111814] rounded-full overflow-hidden mb-1">
+                                                    <div
+                                                        className={`absolute left-0 top-0 h-full rounded-full transition-all duration-300 ${getGradient(task.categoryColor)}`}
+                                                        style={{ width: `${task.progress}%` }}
+                                                    />
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min="0"
+                                                    max="100"
+                                                    value={task.progress}
+                                                    onChange={(e) => {
+                                                        e.stopPropagation();
+                                                        handleProgressChange(task.id, parseInt(e.target.value));
+                                                    }}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="w-full h-2 -mt-2 cursor-pointer appearance-none bg-transparent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-glow [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-glow"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* Timer Section */}
+                                        {hasTimer && (
+                                            <div className="bg-[#111814] rounded-xl p-3 flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-white text-2xl font-mono font-bold tracking-wider">
+                                                        {formatTime(hasTimer.seconds)}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleStopTimer(task.id);
+                                                        }}
+                                                        className="size-8 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"
+                                                    >
+                                                        <span className="material-symbols-outlined text-white text-[18px]">stop</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleToggleTimer(task.id);
+                                                        }}
+                                                        className="size-10 bg-primary rounded-lg flex items-center justify-center hover:brightness-110 transition-all shadow-glow"
+                                                    >
+                                                        <span className="material-symbols-outlined text-black text-[20px]">
+                                                            {hasTimer.isRunning ? 'pause' : 'play_arrow'}
+                                                        </span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Timer Toggle Button */}
+                                        {!hasTimer && !isCompleted && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setPendingTimerTaskId(task.id);
+                                                    setIsTimerModalOpen(true);
                                                 }}
-                                                className="w-full bg-[#111814] border border-surface-border rounded-lg px-3 py-2 text-white/70 text-sm focus:outline-none focus:border-primary transition-colors"
+                                                className="w-full py-2 bg-[#111814] border border-[#2d4a38] rounded-xl text-white/70 text-sm font-medium hover:text-primary hover:border-primary/50 transition-all flex items-center justify-center gap-2"
                                             >
-                                                <option value="">Link to Longer Task...</option>
-                                                {longerTasks.map(lt => (
-                                                    <option key={lt.id} value={lt.id}>{lt.title}</option>
-                                                ))}
-                                                <option value="create-new">+ Create New Long Task</option>
-                                            </select>
+                                                <span className="material-symbols-outlined text-[18px]">timer</span>
+                                                Start Timer
+                                            </button>
+                                        )}
+
+                                        {/* Linking Section */}
+                                        {!isCompleted && (
+                                            <div className="pt-3 border-t border-surface-border">
+                                                {task.long_task_id ? (
+                                                    <div className="flex items-center justify-between text-sm">
+                                                        <span className="text-white/60 flex items-center gap-1">
+                                                            <span className="material-symbols-outlined text-[16px]">link</span>
+                                                            {longerTasks.find(lt => lt.id === task.long_task_id)?.title || 'Linked Task'}
+                                                        </span>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleLinkToLongerTask(task.id, null);
+                                                            }}
+                                                            className="text-red-400 text-xs hover:text-red-300 transition-colors"
+                                                        >
+                                                            Unlink
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <select
+                                                        value=""
+                                                        onChange={(e) => {
+                                                            e.stopPropagation();
+                                                            const value = e.target.value;
+                                                            if (value === 'create-new') {
+                                                                setPendingLinkTaskId(task.id);
+                                                                setIsLongerTaskModalOpen(true);
+                                                            } else if (value) {
+                                                                handleLinkToLongerTask(task.id, value);
+                                                            }
+                                                        }}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="w-full bg-[#111814] border border-surface-border rounded-lg px-3 py-2 text-white/70 text-sm focus:outline-none focus:border-primary transition-colors"
+                                                    >
+                                                        <option value="">Link to Longer Task...</option>
+                                                        {longerTasks.map(lt => (
+                                                            <option key={lt.id} value={lt.id}>{lt.title}</option>
+                                                        ))}
+                                                        <option value="create-new">+ Create New Long Task</option>
+                                                    </select>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                 )}

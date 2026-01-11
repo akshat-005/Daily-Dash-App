@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useTaskStore } from '../src/stores/taskStore';
 import { useStatsStore } from '../src/stores/statsStore';
 import { useCategoryStore } from '../src/stores/categoryStore';
+import { useRevisitStore } from '../src/stores/revisitStore';
 import MobileDateSelector from './MobileDateSelector';
 import MobileStatsCards from './MobileStatsCards';
 import MobileTodaysFocus from './MobileTodaysFocus';
@@ -30,6 +31,17 @@ const MobileView: React.FC<MobileViewProps> = ({ currentDate, onDateSelect }) =>
     const createTask = useTaskStore((state) => state.createTask);
     const categories = useCategoryStore((state) => state.categories);
     const { signOut } = useAuth();
+
+    // Revisit store
+    const todayRevisits = useRevisitStore((state) => state.todayRevisits);
+    const fetchTodayRevisits = useRevisitStore((state) => state.fetchTodayRevisits);
+
+    // Fetch today's revisits
+    useEffect(() => {
+        if (user) {
+            fetchTodayRevisits(user.id);
+        }
+    }, [user, currentDate]);
 
     const handleAddTask = () => {
         setIsTaskModalOpen(true);
@@ -95,6 +107,28 @@ const MobileView: React.FC<MobileViewProps> = ({ currentDate, onDateSelect }) =>
                         <div className="py-4">
                             <MobileStatsCards currentDate={currentDate} />
                         </div>
+
+                        {/* Compact Revisits Summary */}
+                        {todayRevisits.length > 0 && (
+                            <div className="px-4 mb-4">
+                                <button
+                                    onClick={() => setActiveView('revisits')}
+                                    className="w-full bg-[#1a2d23] border border-[#2d4a38] rounded-2xl p-4 hover:bg-[#2d4a38] transition-all active:scale-[0.98]"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-2xl">📌</span>
+                                            <div className="text-left">
+                                                <div className="text-white font-bold text-base">Revisit Today</div>
+                                                <div className="text-white/50 text-sm">{todayRevisits.length} item{todayRevisits.length !== 1 ? 's' : ''}</div>
+                                            </div>
+                                        </div>
+                                        <span className="material-symbols-outlined text-white/40">chevron_right</span>
+                                    </div>
+                                </button>
+                            </div>
+                        )}
+
                         <MobileTodaysFocus currentDate={currentDate} />
                     </>
                 )}
