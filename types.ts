@@ -107,3 +107,38 @@ export interface TimerSession {
 }
 
 export type CategoryColor = 'indigo' | 'primary' | 'emerald' | 'purple' | 'pink';
+
+// Revisit Queue Types
+export type RevisitType = 'tech' | 'leetcode' | 'math' | 'college' | 'book' | 'misc';
+export type RevisitStatus = 'active' | 'done' | 'archived';
+export type DifficultyRating = 'easy' | 'medium' | 'hard';
+export type EstimatedTime = 5 | 15 | 30 | 60;
+
+export interface RevisitItem {
+    id: string;
+    user_id: string;
+    title: string;
+    type: RevisitType;
+    resource_url?: string;
+    reason_to_return?: string;      // KEY: "Why am I saving this?"
+    notes?: string;
+    estimated_time_min: EstimatedTime;
+    difficulty: number;              // 1-5
+    review_count: number;
+    status: RevisitStatus;
+    created_at: string;
+    last_reviewed_at?: string;
+    next_review_at: string;          // DATE string
+    updated_at: string;
+}
+
+export interface CreateRevisitInput {
+    user_id: string;
+    title: string;
+    type?: RevisitType;
+    resource_url?: string;
+    reason_to_return?: string;
+    notes?: string;
+    estimated_time_min?: EstimatedTime;
+    next_review_at: string;
+}

@@ -1,17 +1,21 @@
-import React, { useState } from 'react';
-import { Task } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Task, DifficultyRating, CreateRevisitInput } from '../types';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useTaskStore } from '../src/stores/taskStore';
 import { useLongerTaskStore } from '../src/stores/longerTaskStore';
 import { useCategoryStore } from '../src/stores/categoryStore';
+import { useRevisitStore } from '../src/stores/revisitStore';
 import TaskModal from '../src/components/TaskModal';
 import PushToLaterDialog from '../src/components/PushToLaterDialog';
 import ConfirmDialog from '../src/components/ConfirmDialog';
 import AddLongerTaskModal from '../src/components/AddLongerTaskModal';
 import TimerDurationModal from '../src/components/TimerDurationModal';
+import RevisitCard from '../src/components/RevisitCard';
+import QuickCaptureModal from '../src/components/QuickCaptureModal';
 import toast from 'react-hot-toast';
 import { formatDate, formatDeadlineTime, addDays } from '../src/utils/dateUtils';
 import { formatTimeSpent, formatTimeDifference, isOverEstimate } from '../src/utils/timeUtils';
+import { formatEstimatedTime } from '../src/utils/spacedRepetition';
 import { useTimerSync } from '../src/hooks/useTimerSync';
 
 interface MobileTodaysFocusProps {
@@ -31,6 +35,13 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
     const createLongerTask = useLongerTaskStore((state) => state.createLongerTask);
     const categories = useCategoryStore((state) => state.categories);
 
+    // Revisit store
+    const todayRevisits = useRevisitStore((state) => state.todayRevisits);
+    const fetchTodayRevisits = useRevisitStore((state) => state.fetchTodayRevisits);
+    const completeRevisit = useRevisitStore((state) => state.completeRevisit);
+    const snoozeRevisit = useRevisitStore((state) => state.snoozeRevisit);
+    const createRevisit = useRevisitStore((state) => state.createRevisit);
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isLongerTaskModalOpen, setIsLongerTaskModalOpen] = useState(false);
     const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
@@ -46,6 +57,14 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
         isOpen: false,
         taskId: null,
     });
+    const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
+
+    // Fetch today's revisits
+    useEffect(() => {
+        if (user) {
+            fetchTodayRevisits(user.id);
+        }
+    }, [user, currentDate]);
 
     // Use timer sync hook for real-time synchronization
     const { activeTimers, startTimer, stopTimer, toggleTimer } = useTimerSync(user!.id, currentDate);
@@ -237,6 +256,65 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                     </button>
                 ))}
             </div>
+
+            {/* Revisit Today Section */}
+            {todayRevisits.length > 0 && (
+                <div className="mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                            <span className="text-lg">📌</span>
+                            <span className="text-white font-bold">Revisit Today</span>
+                            <span className="text-white/50 text-sm">
+                                {todayRevisits.length} • {formatEstimatedTime(
+                                    todayRevisits.reduce((sum, r) => sum + r.estimated_time_min, 0)
+                                )}
+                            </span>
+                        </div>
+                        <button
+                            onClick={() => setIsQuickCaptureOpen(true)}
+                            className="text-primary text-xs font-medium hover:underline"
+                        >
+                            + Add
+                        </button>
+                    </div>
+                    <div className="space-y-2">
+                        {todayRevisits.slice(0, 3).map((revisit) => (
+                            <RevisitCard
+                                key={revisit.id}
+                                revisit={revisit}
+                                compact
+                                onComplete={async (id, difficulty) => {
+                                    try {
+                                        await completeRevisit(id, difficulty);
+                                        toast.success(
+                                            difficulty === 'easy'
+                                                ? '🎉 Great! See you in 2 weeks'
+                                                : difficulty === 'medium'
+                                                    ? '👍 Coming back in 1 week'
+                                                    : '💪 Let\'s try again in 2 days'
+                                        );
+                                    } catch {
+                                        toast.error('Failed to complete revisit');
+                                    }
+                                }}
+                                onSnooze={async (id, days) => {
+                                    try {
+                                        await snoozeRevisit(id, days);
+                                        toast.success(`⏰ Snoozed for ${days} day${days > 1 ? 's' : ''}`);
+                                    } catch {
+                                        toast.error('Failed to snooze revisit');
+                                    }
+                                }}
+                            />
+                        ))}
+                        {todayRevisits.length > 3 && (
+                            <p className="text-white/40 text-xs text-center py-1">
+                                +{todayRevisits.length - 3} more in Revisits tab
+                            </p>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-white text-lg font-bold">Today's Focus</h2>
@@ -520,6 +598,22 @@ const MobileTodaysFocus: React.FC<MobileTodaysFocusProps> = ({ currentDate }) =>
                         setPendingTimerTaskId(null);
                     }
                 }}
+            />
+
+            {/* Quick Capture Modal for Revisits */}
+            <QuickCaptureModal
+                isOpen={isQuickCaptureOpen}
+                userId={user!.id}
+                onSave={async (input) => {
+                    try {
+                        await createRevisit(input);
+                        toast.success('📌 Revisit saved!');
+                        fetchTodayRevisits(user!.id);
+                    } catch {
+                        toast.error('Failed to save revisit');
+                    }
+                }}
+                onClose={() => setIsQuickCaptureOpen(false)}
             />
         </div>
     );

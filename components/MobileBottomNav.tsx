@@ -1,8 +1,8 @@
 import React from 'react';
 
 interface MobileBottomNavProps {
-    activeView: 'dashboard' | 'calendar' | 'stats' | 'profile';
-    onNavigate: (view: 'dashboard' | 'calendar' | 'stats' | 'profile') => void;
+    activeView: 'dashboard' | 'calendar' | 'revisits' | 'stats' | 'profile';
+    onNavigate: (view: 'dashboard' | 'calendar' | 'revisits' | 'stats' | 'profile') => void;
     onAddTask: () => void;
 }
 
@@ -11,8 +11,8 @@ const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ activeView, onNavigat
         { id: 'dashboard' as const, icon: 'grid_view', label: 'Dashboard' },
         { id: 'calendar' as const, icon: 'calendar_month', label: 'Calendar' },
         { id: 'add' as const, icon: 'add', label: 'Add' },
+        { id: 'revisits' as const, icon: 'bookmark', label: 'Revisits' },
         { id: 'stats' as const, icon: 'bar_chart', label: 'Stats' },
-        { id: 'profile' as const, icon: 'person', label: 'Profile' },
     ];
 
     return (

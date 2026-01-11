@@ -8,9 +8,12 @@ import TaskColumn from './components/TaskColumn';
 import StatsColumn from './components/StatsColumn';
 import LoadingSpinner from './src/components/LoadingSpinner';
 import MobileView from './components/MobileView';
+import DesktopSidebarNav, { DesktopView } from './components/DesktopSidebarNav';
+import DesktopRevisitsPage from './components/DesktopRevisitsPage';
 import { useTaskStore } from './src/stores/taskStore';
 import { useStatsStore } from './src/stores/statsStore';
 import { useCategoryStore } from './src/stores/categoryStore';
+import { useRevisitStore } from './src/stores/revisitStore';
 import { formatDate, formatDisplayDate, addDays } from './src/utils/dateUtils';
 import { useMediaQuery } from './src/utils/useMediaQuery';
 import { initializeDailyNotifications, updateDailyNotificationData, clearDailyNotifications } from './src/utils/dailyNotifications';
@@ -21,6 +24,8 @@ import { savePushSubscription } from './src/api/pushSubscriptions';
 const DashboardContent: React.FC = () => {
   const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [activeView, setActiveView] = useState<DesktopView>('dashboard');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const isMobile = useMediaQuery('(max-width: 900px)');
 
   const tasks = useTaskStore((state) => state.tasks);
@@ -32,6 +37,7 @@ const DashboardContent: React.FC = () => {
   const fetchDailyStats = useStatsStore((state) => state.fetchDailyStats);
   const fetchWeeklyMomentum = useStatsStore((state) => state.fetchWeeklyMomentum);
   const fetchCategories = useCategoryStore((state) => state.fetchCategories);
+  const fetchTodayRevisits = useRevisitStore((state) => state.fetchTodayRevisits);
 
   useEffect(() => {
     if (user) {
@@ -43,6 +49,7 @@ const DashboardContent: React.FC = () => {
       fetchDailyStats(user.id, dateStr);
       fetchWeeklyMomentum(user.id);
       fetchCategories(user.id);
+      fetchTodayRevisits(user.id);
 
       // Request notification permission and subscribe to push
       const setupPushNotifications = async () => {
@@ -114,45 +121,70 @@ const DashboardContent: React.FC = () => {
     return <MobileView currentDate={currentDate} onDateSelect={handleDateSelect} />;
   }
 
-  // Desktop View
+  // Desktop View with Sidebar Navigation
   return (
-    <>
-      <Header />
+    <div className="flex min-h-screen bg-background-dark">
+      {/* Fixed Sidebar Navigation */}
+      <DesktopSidebarNav
+        activeView={activeView}
+        onNavigate={setActiveView}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+      />
 
-      <main className="flex-1 p-3 md:p-4 lg:p-6 max-w-[1600px] mx-auto w-full">
-        {/* Header Date Section */}
-        <div className="flex flex-col items-center justify-center mb-6 text-center gap-1.5">
-          <div className="flex items-center gap-3 bg-surface-dark border border-surface-border rounded-full p-1 pr-4 shadow-card hover:border-primary/50 transition-colors group">
-            <button
-              onClick={handlePreviousDay}
-              className="size-8 rounded-full bg-surface-border flex items-center justify-center hover:bg-primary hover:text-black transition-colors"
-            >
-              <span className="material-symbols-outlined">chevron_left</span>
-            </button>
-            <div className="flex items-center gap-1.5 px-1.5 cursor-pointer">
-              <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform text-[20px]">calendar_today</span>
-              <h2 className="text-base md:text-lg font-bold whitespace-nowrap">
-                {formatDisplayDate(currentDate)}
-              </h2>
-            </div>
-            <button
-              onClick={handleNextDay}
-              className="size-8 rounded-full bg-surface-border flex items-center justify-center hover:bg-primary hover:text-black transition-colors"
-            >
-              <span className="material-symbols-outlined">chevron_right</span>
-            </button>
+      {/* Main Content Area */}
+      <div className={`flex-1 transition-all duration-300 ${isSidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
+        {activeView === 'dashboard' && (
+          <>
+            <Header />
+            <main className="p-3 md:p-4 lg:p-6 max-w-[1400px] mx-auto w-full">
+              {/* Header Date Section */}
+              <div className="flex flex-col items-center justify-center mb-6 text-center gap-1.5">
+                <div className="flex items-center gap-3 bg-surface-dark border border-surface-border rounded-full p-1 pr-4 shadow-card hover:border-primary/50 transition-colors group">
+                  <button
+                    onClick={handlePreviousDay}
+                    className="size-8 rounded-full bg-surface-border flex items-center justify-center hover:bg-primary hover:text-black transition-colors"
+                  >
+                    <span className="material-symbols-outlined">chevron_left</span>
+                  </button>
+                  <div className="flex items-center gap-1.5 px-1.5 cursor-pointer">
+                    <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform text-[20px]">calendar_today</span>
+                    <h2 className="text-base md:text-lg font-bold whitespace-nowrap">
+                      {formatDisplayDate(currentDate)}
+                    </h2>
+                  </div>
+                  <button
+                    onClick={handleNextDay}
+                    className="size-8 rounded-full bg-surface-border flex items-center justify-center hover:bg-primary hover:text-black transition-colors"
+                  >
+                    <span className="material-symbols-outlined">chevron_right</span>
+                  </button>
+                </div>
+                <p className="text-[#9db9a8] text-xs md:text-sm font-medium tracking-wide uppercase">Build Momentum Today</p>
+              </div>
+
+              {/* 3-Column Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start h-full">
+                <Sidebar currentDate={currentDate} onDateSelect={handleDateSelect} />
+                <TaskColumn currentDate={currentDate} />
+                <StatsColumn currentDate={currentDate} />
+              </div>
+            </main>
+          </>
+        )}
+
+        {activeView === 'revisits' && (
+          <DesktopRevisitsPage currentDate={currentDate} />
+        )}
+
+        {activeView === 'stats' && (
+          <div className="p-6 max-w-4xl mx-auto">
+            <h1 className="text-white text-2xl font-bold mb-6">Statistics</h1>
+            <StatsColumn currentDate={currentDate} compact={true} />
           </div>
-          <p className="text-[#9db9a8] text-xs md:text-sm font-medium tracking-wide uppercase">Build Momentum Today</p>
-        </div>
-
-        {/* 3-Column Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start h-full">
-          <Sidebar currentDate={currentDate} onDateSelect={handleDateSelect} />
-          <TaskColumn currentDate={currentDate} />
-          <StatsColumn currentDate={currentDate} />
-        </div>
-      </main>
-    </>
+        )}
+      </div>
+    </div>
   );
 };
 

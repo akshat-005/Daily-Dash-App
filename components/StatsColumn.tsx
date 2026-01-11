@@ -9,9 +9,10 @@ import toast from 'react-hot-toast';
 
 interface StatsColumnProps {
     currentDate: Date;
+    compact?: boolean; // If true, use compact grid layout for Longer Tasks
 }
 
-const StatsColumn: React.FC<StatsColumnProps> = ({ currentDate }) => {
+const StatsColumn: React.FC<StatsColumnProps> = ({ currentDate, compact = false }) => {
     const { user } = useAuth();
     const streak = useStatsStore((state) => state.streak);
     const dailyStats = useStatsStore((state) => state.dailyStats);
@@ -94,7 +95,7 @@ const StatsColumn: React.FC<StatsColumnProps> = ({ currentDate }) => {
             </div>
 
             {/* Longer Tasks */}
-            <LongerTasksList />
+            <LongerTasksList compact={compact} />
         </div>
     );
 };

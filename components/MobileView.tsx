@@ -8,6 +8,7 @@ import MobileDateSelector from './MobileDateSelector';
 import MobileStatsCards from './MobileStatsCards';
 import MobileTodaysFocus from './MobileTodaysFocus';
 import MobileBottomNav from './MobileBottomNav';
+import MobileRevisitsView from './MobileRevisitsView';
 import Sidebar from './Sidebar';
 import StatsColumn from './StatsColumn';
 import TaskModal from '../src/components/TaskModal';
@@ -21,7 +22,7 @@ interface MobileViewProps {
 
 const MobileView: React.FC<MobileViewProps> = ({ currentDate, onDateSelect }) => {
     const { user, getUserDisplayName } = useAuth();
-    const [activeView, setActiveView] = useState<'dashboard' | 'calendar' | 'stats' | 'profile'>('dashboard');
+    const [activeView, setActiveView] = useState<'dashboard' | 'calendar' | 'revisits' | 'stats' | 'profile'>('dashboard');
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
 
@@ -102,6 +103,10 @@ const MobileView: React.FC<MobileViewProps> = ({ currentDate, onDateSelect }) =>
                     <div className="p-4">
                         <Sidebar currentDate={currentDate} onDateSelect={onDateSelect} />
                     </div>
+                )}
+
+                {activeView === 'revisits' && (
+                    <MobileRevisitsView currentDate={currentDate} />
                 )}
 
                 {activeView === 'stats' && (

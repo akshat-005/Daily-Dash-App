@@ -5,7 +5,11 @@ import AddLongerTaskModal from './AddLongerTaskModal';
 import LongerTaskDetails from './LongerTaskDetails';
 import { LongerTask } from '../../types';
 
-const LongerTasksList: React.FC = () => {
+interface LongerTasksListProps {
+    compact?: boolean; // If true, use 2-column grid layout (for Statistics page)
+}
+
+const LongerTasksList: React.FC<LongerTasksListProps> = ({ compact = false }) => {
     const { user } = useAuth();
     const { longerTasks, isLoading, fetchLongerTasks, createLongerTask, updateLongerTask, deleteLongerTask } = useLongerTaskStore();
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -95,58 +99,63 @@ const LongerTasksList: React.FC = () => {
                         <p className="text-white/50 text-sm">No longer tasks yet. Create one to get started!</p>
                     </div>
                 ) : (
-                    <div className="space-y-3">
+                    <div className={compact
+                        ? "grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-1 scrollbar-thin"
+                        : "space-y-2 max-h-[400px] overflow-y-auto pr-1 scrollbar-thin"
+                    }>
                         {longerTasks.map((task) => (
                             <div
                                 key={task.id}
-                                className="bg-[#111814] border border-surface-border hover:border-primary/30 rounded-xl p-3 transition-all cursor-pointer group"
+                                className="bg-[#111814] border border-surface-border hover:border-primary/40 rounded-xl p-3 transition-all cursor-pointer group hover:shadow-lg hover:shadow-primary/5"
                                 onClick={() => setSelectedTask(task)}
                             >
-                                <div className="flex items-start justify-between mb-2">
-                                    <div className="flex-1">
-                                        <h3 className="text-white font-bold text-sm group-hover:text-primary transition-colors">
+                                <div className="flex items-start gap-3">
+                                    {/* Circular Progress */}
+                                    <div
+                                        className="size-11 rounded-full flex items-center justify-center shrink-0 relative"
+                                        style={{
+                                            background: `conic-gradient(#2bee79 ${task.progress}%, #28392f ${task.progress}%)`
+                                        }}
+                                    >
+                                        <div className="size-8 bg-[#111814] rounded-full flex items-center justify-center">
+                                            <span className="text-white font-bold text-[10px]">{task.progress}%</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Content */}
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="text-white font-bold text-sm group-hover:text-primary transition-colors line-clamp-2 leading-tight mb-1">
                                             {task.title}
                                         </h3>
-                                        {task.description && (
-                                            <p className="text-white/50 text-xs mt-1 line-clamp-1">
-                                                {task.description}
-                                            </p>
-                                        )}
-                                    </div>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDeleteTask(task.id);
-                                        }}
-                                        className="text-white/30 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]">delete</span>
-                                    </button>
-                                </div>
 
-                                <div className="flex items-center gap-2 mb-2">
-                                    <div className="flex-1 h-1.5 bg-surface-border rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-primary rounded-full transition-all duration-300"
-                                            style={{ width: `${task.progress}%` }}
-                                        />
+                                        <div className="flex items-center gap-2">
+                                            {task.deadline ? (
+                                                <span className="text-[10px] text-white/40 flex items-center gap-0.5">
+                                                    <span className="material-symbols-outlined text-[10px]">calendar_today</span>
+                                                    {formatDeadline(task.deadline)}
+                                                </span>
+                                            ) : (
+                                                <span className="text-[10px] text-white/30">No deadline</span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <span className="text-primary text-xs font-bold">{task.progress}%</span>
-                                </div>
 
-                                <div className="flex items-center justify-between text-xs">
-                                    {task.deadline ? (
-                                        <span className="text-white/40 flex items-center gap-1">
-                                            <span className="material-symbols-outlined text-[14px]">calendar_today</span>
-                                            {formatDeadline(task.deadline)}
+                                    {/* Hover actions */}
+                                    <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteTask(task.id);
+                                            }}
+                                            className="size-6 rounded-lg bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors"
+                                            title="Delete task"
+                                        >
+                                            <span className="material-symbols-outlined text-red-400 text-[14px]">delete</span>
+                                        </button>
+                                        <span className="material-symbols-outlined text-primary/50 text-[14px]">
+                                            arrow_forward
                                         </span>
-                                    ) : (
-                                        <span className="text-white/40">No deadline</span>
-                                    )}
-                                    <span className="text-primary/70 flex items-center gap-1">
-                                        View details
-                                        <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-                                    </span>
+                                    </div>
                                 </div>
                             </div>
                         ))}
