@@ -7,6 +7,7 @@ interface RevisitStore {
     // State
     revisits: RevisitItem[];
     todayRevisits: RevisitItem[];
+    calendarRevisits: RevisitItem[]; // For calendar view
     upcomingRevisits: RevisitItem[];
     loading: boolean;
     error: string | null;
@@ -22,6 +23,7 @@ interface RevisitStore {
     // Actions
     fetchRevisits: (userId: string) => Promise<void>;
     fetchTodayRevisits: (userId: string) => Promise<void>;
+    fetchCalendarRevisits: (userId: string, date: string) => Promise<void>;
     fetchUpcomingRevisits: (userId: string) => Promise<void>;
     fetchStats: (userId: string) => Promise<void>;
     createRevisit: (input: CreateRevisitInput) => Promise<void>;
@@ -39,6 +41,7 @@ interface RevisitStore {
 export const useRevisitStore = create<RevisitStore>((set, get) => ({
     revisits: [],
     todayRevisits: [],
+    calendarRevisits: [],
     upcomingRevisits: [],
     loading: false,
     error: null,
@@ -67,6 +70,15 @@ export const useRevisitStore = create<RevisitStore>((set, get) => ({
             set({ todayRevisits });
         } catch (error) {
             console.error('Failed to fetch today revisits:', error);
+        }
+    },
+
+    fetchCalendarRevisits: async (userId: string, date: string) => {
+        try {
+            const calendarRevisits = await revisitApi.fetchRevisitsDueOn(userId, date);
+            set({ calendarRevisits });
+        } catch (error) {
+            console.error('Failed to fetch calendar revisits:', error);
         }
     },
 

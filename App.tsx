@@ -10,6 +10,7 @@ import LoadingSpinner from './src/components/LoadingSpinner';
 import MobileView from './components/MobileView';
 import DesktopSidebarNav, { DesktopView } from './components/DesktopSidebarNav';
 import DesktopRevisitsPage from './components/DesktopRevisitsPage';
+import DesktopCalendarPage from './components/DesktopCalendarPage';
 import TypewriterGreeting from './components/TypewriterGreeting';
 import { useTaskStore } from './src/stores/taskStore';
 import { useStatsStore } from './src/stores/statsStore';
@@ -177,7 +178,11 @@ const DashboardContent: React.FC = () => {
 
               {/* 3-Column Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start h-full">
-                <Sidebar currentDate={currentDate} onDateSelect={handleDateSelect} />
+                <Sidebar
+                  currentDate={currentDate}
+                  onDateSelect={handleDateSelect}
+                  onNavigateToCalendar={() => setActiveView('calendar')}
+                />
                 <TaskColumn currentDate={currentDate} />
                 <StatsColumn
                   currentDate={currentDate}
@@ -186,6 +191,10 @@ const DashboardContent: React.FC = () => {
               </div>
             </main>
           </>
+        )}
+
+        {activeView === 'calendar' && (
+          <DesktopCalendarPage currentDate={currentDate} />
         )}
 
         {activeView === 'revisits' && (

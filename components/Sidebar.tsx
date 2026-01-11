@@ -10,9 +10,10 @@ const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 interface SidebarProps {
   currentDate: Date;
   onDateSelect: (date: Date) => void;
+  onNavigateToCalendar?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentDate, onDateSelect }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentDate, onDateSelect, onNavigateToCalendar }) => {
   const { user } = useAuth();
   const [calendarDays, setCalendarDays] = useState<Day[]>([]);
 
@@ -78,8 +79,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentDate, onDateSelect }) => {
     <div className="lg:col-span-3 space-y-4">
       {/* Calendar Widget */}
       <div className="bg-surface-dark border border-surface-border rounded-2xl p-4 shadow-card">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-white font-bold text-lg">
+        <div
+          className="flex items-center justify-between mb-4 cursor-pointer group"
+          onClick={onNavigateToCalendar}
+          title="Open Calendar"
+        >
+          <span className="text-white font-bold text-lg group-hover:text-primary transition-colors">
             {format(currentDate, 'MMMM yyyy')}
           </span>
           <div className="flex gap-1">

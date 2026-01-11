@@ -3,7 +3,7 @@ import { useAuth } from '../src/contexts/AuthContext';
 import { useStatsStore } from '../src/stores/statsStore';
 import { useRevisitStore } from '../src/stores/revisitStore';
 
-export type DesktopView = 'dashboard' | 'revisits' | 'stats';
+export type DesktopView = 'dashboard' | 'calendar' | 'revisits' | 'stats';
 
 interface DesktopSidebarNavProps {
     activeView: DesktopView;
@@ -24,6 +24,7 @@ const DesktopSidebarNav: React.FC<DesktopSidebarNavProps> = ({
 
     const navItems = [
         { id: 'dashboard' as const, icon: 'grid_view', label: 'Dashboard' },
+        { id: 'calendar' as const, icon: 'calendar_month', label: 'Calendar' },
         { id: 'stats' as const, icon: 'bar_chart', label: 'Statistics' },
         { id: 'revisits' as const, icon: 'bookmark', label: 'Revisits', badge: todayRevisits.length || undefined },
     ];
