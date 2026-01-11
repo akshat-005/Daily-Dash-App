@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useStatsStore } from '../src/stores/statsStore';
 import { useTaskStore } from '../src/stores/taskStore';
+import { useRevisitStore } from '../src/stores/revisitStore';
 import { formatDate } from '../src/utils/dateUtils';
 import { calculateAndSaveDailyScore, updateStreak } from '../src/api/stats';
 import LongerTasksList from '../src/components/LongerTasksList';
@@ -10,16 +11,25 @@ import toast from 'react-hot-toast';
 interface StatsColumnProps {
     currentDate: Date;
     compact?: boolean; // If true, use compact grid layout for Longer Tasks
+    onNavigateToRevisits?: () => void; // Callback to navigate to Revisits page
 }
 
-const StatsColumn: React.FC<StatsColumnProps> = ({ currentDate, compact = false }) => {
+const StatsColumn: React.FC<StatsColumnProps> = ({ currentDate, compact = false, onNavigateToRevisits }) => {
     const { user } = useAuth();
     const streak = useStatsStore((state) => state.streak);
     const dailyStats = useStatsStore((state) => state.dailyStats);
     const weeklyMomentum = useStatsStore((state) => state.weeklyMomentum);
     const tasks = useTaskStore((state) => state.tasks);
+    const todayRevisits = useRevisitStore((state) => state.todayRevisits);
+    const fetchTodayRevisits = useRevisitStore((state) => state.fetchTodayRevisits);
     const fetchStreak = useStatsStore((state) => state.fetchStreak);
     const fetchDailyStats = useStatsStore((state) => state.fetchDailyStats);
+
+    useEffect(() => {
+        if (user) {
+            fetchTodayRevisits(user.id);
+        }
+    }, [user]);
 
     const dailyScore = dailyStats?.daily_score || 0;
     const currentStreak = streak?.current_streak || 0;
@@ -39,17 +49,20 @@ const StatsColumn: React.FC<StatsColumnProps> = ({ currentDate, compact = false 
 
     return (
         <div className="lg:col-span-3 flex flex-col gap-4">
-            {/* Streak Card */}
-            <div className="bg-surface-dark border border-surface-border rounded-2xl p-4 shadow-card flex items-center justify-between relative overflow-hidden">
-                <div className="absolute right-0 top-0 w-20 h-full bg-gradient-to-l from-orange-500/10 to-transparent"></div>
+            {/* Revisit Today Widget */}
+            <div
+                onClick={onNavigateToRevisits}
+                className="bg-surface-dark border border-surface-border rounded-2xl p-4 shadow-card flex items-center justify-between relative overflow-hidden cursor-pointer hover:border-primary/50 transition-all group"
+            >
+                <div className="absolute right-0 top-0 w-20 h-full bg-gradient-to-l from-blue-500/10 to-transparent"></div>
                 <div>
-                    <p className="text-[#9db9a8] text-xs font-medium mb-0.5">Current Streak</p>
+                    <p className="text-[#9db9a8] text-xs font-medium mb-0.5">Revisit Today</p>
                     <h2 className="text-2xl font-black text-white tracking-tight">
-                        {currentStreak} {currentStreak === 1 ? 'Day' : 'Days'}
+                        {todayRevisits.length} {todayRevisits.length === 1 ? 'Item' : 'Items'}
                     </h2>
                 </div>
-                <div className="size-12 rounded-full bg-orange-500/20 flex items-center justify-center animate-pulse">
-                    <span className="text-2xl">🔥</span>
+                <div className="size-12 rounded-full bg-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <span className="text-2xl">📌</span>
                 </div>
             </div>
 

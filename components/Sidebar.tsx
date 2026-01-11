@@ -1,14 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Day, DifficultyRating, CreateRevisitInput } from '../types';
+import { Day } from '../types';
 import { useAuth } from '../src/contexts/AuthContext';
 import { supabase } from '../src/lib/supabase';
-import { formatDate, checkIsToday } from '../src/utils/dateUtils';
+import { formatDate } from '../src/utils/dateUtils';
 import { startOfMonth, endOfMonth, eachDayOfInterval, getDay, format } from 'date-fns';
-import { useRevisitStore } from '../src/stores/revisitStore';
-import RevisitCard from '../src/components/RevisitCard';
-import QuickCaptureModal from '../src/components/QuickCaptureModal';
-import { formatEstimatedTime } from '../src/utils/spacedRepetition';
-import toast from 'react-hot-toast';
 
 const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -18,21 +13,12 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentDate, onDateSelect }) => {
-  const { user, getUserDisplayName } = useAuth();
+  const { user } = useAuth();
   const [calendarDays, setCalendarDays] = useState<Day[]>([]);
-  const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
-
-  // Revisit store
-  const todayRevisits = useRevisitStore((state) => state.todayRevisits);
-  const fetchTodayRevisits = useRevisitStore((state) => state.fetchTodayRevisits);
-  const completeRevisit = useRevisitStore((state) => state.completeRevisit);
-  const snoozeRevisit = useRevisitStore((state) => state.snoozeRevisit);
-  const createRevisit = useRevisitStore((state) => state.createRevisit);
 
   useEffect(() => {
     if (user) {
       loadCalendarData();
-      fetchTodayRevisits(user.id);
     }
   }, [user, currentDate]);
 
@@ -81,7 +67,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentDate, onDateSelect }) => {
               : productivity === 'low'
                 ? 'low'
                 : 'none',
-        isToday: checkIsToday(date),
+        isToday: formatDate(date) === formatDate(today),
       } as Day;
     });
 
@@ -89,20 +75,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentDate, onDateSelect }) => {
   };
 
   return (
-    <div className="lg:col-span-3 flex flex-col gap-4">
-      {/* User Greeting */}
-      <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-5">
-        <p className="text-white/50 text-xs font-medium uppercase tracking-wide mb-1">
-          {format(currentDate, 'EEEE, MMMM d, yyyy')}
-        </p>
-        <h2 className="text-white text-2xl font-bold mb-1">
-          Hi, {getUserDisplayName()}! 👋
-        </h2>
-        <p className="text-white/60 text-sm">
-          Let's make today productive
-        </p>
-      </div>
-
+    <div className="lg:col-span-3 space-y-4">
       {/* Calendar Widget */}
       <div className="bg-surface-dark border border-surface-border rounded-2xl p-4 shadow-card">
         <div className="flex items-center justify-between mb-4">
@@ -171,107 +144,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentDate, onDateSelect }) => {
           })}
         </div>
       </div>
-
-      {/* Motivation Card */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-900 to-purple-900 p-4 text-white shadow-card">
-        <img
-          className="absolute inset-0 w-full h-full object-cover opacity-30"
-          src="https://lh3.googleusercontent.com/aida-public/AB6AXuBzWlWRUscb13ZeXieHtHxkWT1fdN4WcNbz-HDQVAkVZb83Vks68ZL01bYjoDz7gzSXykuqCdbf55j3yNT7ZfsSj6VbNKaqzt5m879AX2SE971JyMCY6bci3rqlYXr0FkAA_eqI25f9Z-nKG0GVdEDJWHZ3xBOtU5mlpzbSxLJtFjH0NFLOdTC1F6Y4hyRPaOxOI4MZLirqbcxXHan6nQzao-5jy6n6lsa-G71emYrCHEISI7rlRtvK7jjUCoA50KKwnzOukfAFc-Jt"
-          alt="Abstract background"
-        />
-        <div className="relative z-10">
-          <span className="material-symbols-outlined mb-1.5 text-yellow-300 text-[20px]">bolt</span>
-          <h3 className="font-bold text-base leading-tight mb-1.5">Focus on the process, not the outcome.</h3>
-          <p className="text-xs opacity-80">You are doing great. Keep pushing forward one task at a time.</p>
-        </div>
-      </div>
-
-      {/* Revisits Section */}
-      <div className="bg-surface-dark border border-surface-border rounded-2xl p-4 shadow-card">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">📌</span>
-            <span className="text-white font-bold">Revisit Today</span>
-            {todayRevisits.length > 0 && (
-              <span className="text-white/50 text-xs">
-                {todayRevisits.length} • {formatEstimatedTime(todayRevisits.reduce((sum, r) => sum + r.estimated_time_min, 0))}
-              </span>
-            )}
-          </div>
-          <button
-            onClick={() => setIsQuickCaptureOpen(true)}
-            className="size-7 rounded-lg bg-primary/20 text-primary flex items-center justify-center hover:bg-primary/30 transition-colors"
-            title="Quick Capture"
-          >
-            <span className="material-symbols-outlined text-[16px]">add</span>
-          </button>
-        </div>
-
-        {todayRevisits.length > 0 ? (
-          <div className="space-y-2">
-            {todayRevisits.slice(0, 3).map((revisit) => (
-              <RevisitCard
-                key={revisit.id}
-                revisit={revisit}
-                compact
-                onComplete={async (id, difficulty) => {
-                  try {
-                    await completeRevisit(id, difficulty);
-                    toast.success(
-                      difficulty === 'easy'
-                        ? '🎉 Great! See you in 2 weeks'
-                        : difficulty === 'medium'
-                          ? '👍 Coming back in 1 week'
-                          : '💪 Let\'s try again in 2 days'
-                    );
-                  } catch {
-                    toast.error('Failed to complete revisit');
-                  }
-                }}
-                onSnooze={async (id, days) => {
-                  try {
-                    await snoozeRevisit(id, days);
-                    toast.success(`⏰ Snoozed for ${days} day${days > 1 ? 's' : ''}`);
-                  } catch {
-                    toast.error('Failed to snooze revisit');
-                  }
-                }}
-              />
-            ))}
-            {todayRevisits.length > 3 && (
-              <p className="text-white/40 text-xs text-center py-1">
-                +{todayRevisits.length - 3} more
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-4">
-            <p className="text-white/50 text-sm mb-2">No revisits due today</p>
-            <button
-              onClick={() => setIsQuickCaptureOpen(true)}
-              className="text-primary text-xs font-medium hover:underline"
-            >
-              + Quick Capture
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Quick Capture Modal */}
-      <QuickCaptureModal
-        isOpen={isQuickCaptureOpen}
-        userId={user?.id || ''}
-        onSave={async (input) => {
-          try {
-            await createRevisit(input);
-            toast.success('📌 Revisit saved!');
-            if (user) fetchTodayRevisits(user.id);
-          } catch {
-            toast.error('Failed to save revisit');
-          }
-        }}
-        onClose={() => setIsQuickCaptureOpen(false)}
-      />
     </div>
   );
 };

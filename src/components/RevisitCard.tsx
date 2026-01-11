@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { RevisitItem, DifficultyRating } from '../../types';
 import { getRevisitTypeIcon, formatEstimatedTime } from '../utils/spacedRepetition';
+import { useClickOutside } from '../utils/useClickOutside';
 
 interface RevisitCardProps {
     revisit: RevisitItem;
@@ -24,6 +25,16 @@ const RevisitCard: React.FC<RevisitCardProps> = ({
     const [showActions, setShowActions] = useState(false);
     const [showDifficultyRating, setShowDifficultyRating] = useState(false);
     const [showSnoozeOptions, setShowSnoozeOptions] = useState(false);
+
+    // Refs for click-outside detection
+    const actionsRef = useRef<HTMLDivElement>(null);
+    const difficultyRef = useRef<HTMLDivElement>(null);
+    const snoozeRef = useRef<HTMLDivElement>(null);
+
+    // Click outside handlers
+    useClickOutside(actionsRef, () => setShowActions(false), showActions);
+    useClickOutside(difficultyRef, () => setShowDifficultyRating(false), showDifficultyRating);
+    useClickOutside(snoozeRef, () => setShowSnoozeOptions(false), showSnoozeOptions);
 
     const handleStartRevisit = () => {
         if (revisit.resource_url) {
@@ -84,7 +95,7 @@ const RevisitCard: React.FC<RevisitCardProps> = ({
 
                 {/* Snooze Options Dropdown */}
                 {showSnoozeOptions && (
-                    <div className="mt-2 flex gap-2 animate-fade-in">
+                    <div ref={snoozeRef} className="mt-2 flex gap-2 animate-fade-in">
                         <button
                             onClick={() => handleSnooze(1)}
                             className="px-2 py-1 rounded-lg bg-[#1a2d23] text-white/70 text-xs hover:bg-[#2d4a38]"
@@ -108,7 +119,7 @@ const RevisitCard: React.FC<RevisitCardProps> = ({
 
                 {/* Custom Date Picker */}
                 {showDifficultyRating && (
-                    <div className="mt-2 p-3 bg-[#1a2d23] rounded-xl animate-fade-in">
+                    <div ref={difficultyRef} className="mt-2 p-3 bg-[#1a2d23] rounded-xl animate-fade-in">
                         <p className="text-white/70 text-xs mb-2">When should you revisit this next?</p>
 
                         {/* Date Input */}
@@ -195,7 +206,7 @@ const RevisitCard: React.FC<RevisitCardProps> = ({
                     <span className="px-2 py-0.5 rounded-full bg-[#111814] text-white/60 text-xs">
                         {formatEstimatedTime(revisit.estimated_time_min)}
                     </span>
-                    <div className="relative">
+                    <div className="relative" ref={actionsRef}>
                         <button
                             onClick={() => setShowActions(!showActions)}
                             className="size-7 rounded-lg hover:bg-[#111814] flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
@@ -299,7 +310,7 @@ const RevisitCard: React.FC<RevisitCardProps> = ({
 
             {/* Snooze Options */}
             {showSnoozeOptions && (
-                <div className="mt-3 flex gap-2 animate-fade-in">
+                <div ref={snoozeRef} className="mt-3 flex gap-2 animate-fade-in">
                     <button
                         onClick={() => handleSnooze(1)}
                         className="flex-1 py-2 rounded-lg bg-[#111814] text-white/70 text-sm hover:bg-[#2d4a38] transition-colors"
@@ -323,7 +334,7 @@ const RevisitCard: React.FC<RevisitCardProps> = ({
 
             {/* Custom Date Picker for Next Review */}
             {showDifficultyRating && (
-                <div className="mt-3 p-3 bg-[#111814] rounded-xl animate-fade-in">
+                <div ref={difficultyRef} className="mt-3 p-3 bg-[#111814] rounded-xl animate-fade-in">
                     <p className="text-white/70 text-sm mb-3 text-center">When should you revisit this next?</p>
 
                     {/* Date Input */}
