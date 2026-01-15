@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useStatsStore } from '../src/stores/statsStore';
 import UserSettingsModal from './UserSettingsModal';
@@ -12,7 +12,6 @@ const Header: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const streak = useStatsStore((state) => state.streak);
-  const fetchStreak = useStatsStore((state) => state.fetchStreak);
 
   // Refs for click-outside detection
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -21,12 +20,6 @@ const Header: React.FC = () => {
   // Click outside handlers
   useClickOutside(profileMenuRef, () => setShowProfileMenu(false), showProfileMenu);
   useClickOutside(notificationsRef, () => setShowNotifications(false), showNotifications);
-
-  useEffect(() => {
-    if (user) {
-      fetchStreak(user.id);
-    }
-  }, [user]);
 
   const handleSignOut = async () => {
     try {

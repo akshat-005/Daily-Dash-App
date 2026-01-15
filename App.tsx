@@ -35,7 +35,7 @@ const DashboardContent: React.FC = () => {
   const subscribeToTasks = useTaskStore((state) => state.subscribeToTasks);
   const streak = useStatsStore((state) => state.streak);
   const dailyStats = useStatsStore((state) => state.dailyStats);
-  const fetchStreak = useStatsStore((state) => state.fetchStreak);
+  const updateStreak = useStatsStore((state) => state.updateStreak);
   const fetchDailyStats = useStatsStore((state) => state.fetchDailyStats);
   const fetchWeeklyMomentum = useStatsStore((state) => state.fetchWeeklyMomentum);
   const fetchCategories = useCategoryStore((state) => state.fetchCategories);
@@ -47,7 +47,7 @@ const DashboardContent: React.FC = () => {
 
       // Fetch all data for current date
       fetchTasks(user.id, dateStr);
-      fetchStreak(user.id);
+      updateStreak(user.id);
       fetchDailyStats(user.id, dateStr);
       fetchWeeklyMomentum(user.id);
       fetchCategories(user.id);
